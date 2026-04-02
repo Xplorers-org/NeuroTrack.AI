@@ -52,13 +52,7 @@ export function AnalysisSidebar({
       href: "/analysis/voice",
       completed: completedSteps.includes("voice"),
     },
-    {
-      id: "gait",
-      label: "Gait Analysis",
-      icon: Footprints,
-      href: "/analysis/gait",
-      completed: completedSteps.includes("gait"),
-    },
+
     {
       id: "drawing",
       label: "Drawing Analysis",
@@ -67,12 +61,24 @@ export function AnalysisSidebar({
       completed: completedSteps.includes("drawing"),
     },
     {
+      id: "gait",
+      label: "Gait Analysis",
+      icon: Footprints,
+      href: "/analysis/gait",
+      completed: completedSteps.includes("gait"),
+    },
+    {
       id: "dashboard",
       label: "Dashboard",
       icon: LayoutDashboard,
       href: "/analysis/dashboard",
     },
-    { id: "results", label: "Results", icon: FileText, href: "/analysis/results" },
+    {
+      id: "results",
+      label: "Results",
+      icon: FileText,
+      href: "/analysis/results",
+    },
   ];
 
   return (
@@ -83,7 +89,9 @@ export function AnalysisSidebar({
           <Brain className="w-5 h-5 text-white" />
         </div>
         <div className="flex items-baseline gap-1">
-          <span className="text-xl font-semibold text-sidebar-foreground">NeuroTrack</span>
+          <span className="text-xl font-semibold text-sidebar-foreground">
+            NeuroTrack
+          </span>
           <span className="text-xl font-bold text-cyan-500">AI</span>
         </div>
       </div>
@@ -103,7 +111,7 @@ export function AnalysisSidebar({
                     "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-200",
                     isActive
                       ? "border-l-2 border-cyan-500 bg-linear-to-r from-cyan-500/20 to-blue-600/10 text-sidebar-foreground"
-                      : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                      : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground",
                   )}
                 >
                   <Icon className="w-5 h-5" />
