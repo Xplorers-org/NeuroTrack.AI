@@ -47,7 +47,6 @@ export function AnalysisSidebar({
       icon: Speech,
       href: "/analysis/voice",
     },
-
     {
       id: "drawing",
       label: "Drawing Analysis",
@@ -59,12 +58,6 @@ export function AnalysisSidebar({
       label: "Gait Analysis",
       icon: Footprints,
       href: "/analysis/gait",
-    },
-    {
-      id: "dashboard",
-      label: "Dashboard",
-      icon: LayoutDashboard,
-      href: "/analysis/dashboard",
     },
     {
       id: "results",

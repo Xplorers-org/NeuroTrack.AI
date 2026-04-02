@@ -18,9 +18,10 @@ export function Header() {
           <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary">
             <Brain className="w-5 h-5 text-primary-foreground" />
           </div>
-          <span className="text-lg font-semibold text-foreground">
-            NeuroTrack AI
+          <span className="text-xl font-semibold text-sidebar-foreground">
+            NeroTrack
           </span>
+          <span className="text-xl font-bold text-cyan-500">AI</span>
         </Link>
 
         {/* <div className="hidden md:flex items-center gap-8">

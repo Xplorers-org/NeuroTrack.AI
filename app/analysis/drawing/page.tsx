@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { AnalysisCompleteDialog } from "@/components/analysis/analysis-complete-dialog";
 import { AnalysisSidebar } from "@/components/analysis/analysis-sidebar";
 import { StepIndicator } from "@/components/analysis/step-indicator";
 import { Button } from "@/components/ui/button";
-import { Upload, CircleCheck } from "lucide-react";
+import { Upload, Loader2 } from "lucide-react";
+
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const drawingSteps = [
   { id: 1, title: "Upload", subtitle: "Spiral and wave drawings" },
@@ -25,7 +27,15 @@ export default function DrawingAnalysisPage() {
   const [waveFile, setWaveFile] = useState<File | null>(null);
   const spiralInputRef = useRef<HTMLInputElement>(null);
   const waveInputRef = useRef<HTMLInputElement>(null);
-  const [completedSteps] = useState<string[]>(["patient-info", "voice", "gait"]);
+  const [completedSteps, setCompletedSteps] = useState<string[]>(["patient-info", "voice"]);
+
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const storedSession = sessionStorage.getItem("sessionId");
+    if (storedSession) setSessionId(storedSession);
+  }, []);
 
   const handleSpiralFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (waveFile) {
@@ -106,6 +116,67 @@ export default function DrawingAnalysisPage() {
 
   const getProgress = () => {
     return { current: completedSteps.length, total: 3 };
+  };
+
+  const submitAnalysis = async () => {
+    if (!spiralFile || !waveFile || !sessionId) {
+      toast.error("Missing drawing files or session data.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Submit Spiral
+      const formDataSpiral = new FormData();
+      formDataSpiral.append("session_id", sessionId);
+      formDataSpiral.append("drawing_type", "spiral");
+      formDataSpiral.append("file", spiralFile);
+
+      const resSpiral = await fetch("/api/analyze/drawing", {
+        method: "POST",
+        body: formDataSpiral,
+      });
+
+      if (!resSpiral.ok) {
+        const errData = await resSpiral.json();
+        throw new Error(errData.error || "Failed to analyze spiral drawing");
+      }
+      const spiralResult = await resSpiral.json();
+
+      // Submit Wave
+      const formDataWave = new FormData();
+      formDataWave.append("session_id", sessionId);
+      formDataWave.append("drawing_type", "wave");
+      formDataWave.append("file", waveFile);
+
+      const resWave = await fetch("/api/analyze/drawing", {
+        method: "POST",
+        body: formDataWave,
+      });
+
+      if (!resWave.ok) {
+        const errData = await resWave.json();
+        throw new Error(errData.error || "Failed to analyze wave drawing");
+      }
+      const waveResult = await resWave.json();
+
+      sessionStorage.setItem(
+        "drawingResult",
+        JSON.stringify({ spiral: spiralResult, wave: waveResult })
+      );
+      toast.success("Drawing analysis complete.");
+      
+      setCompletedSteps([...completedSteps, "drawing"]);
+      router.push("/analysis/gait");
+    } catch (err) {
+      if (err instanceof Error) {
+        toast.error(err.message);
+      } else {
+        toast.error("An unexpected error occurred");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -247,7 +318,7 @@ export default function DrawingAnalysisPage() {
               <div className="flex items-center justify-between mt-8">
                 <Button
                   variant="secondary"
-                  onClick={() => router.push("/analysis/gait")}
+                  onClick={() => router.push("/analysis/voice")}
                   className="bg-secondary dark:bg-[#1a1f2e] hover:bg-secondary/80 dark:hover:bg-[#252b3b] border-0 text-foreground dark:text-white px-6"
                 >
                   Previous
@@ -340,15 +411,24 @@ export default function DrawingAnalysisPage() {
                 <Button
                   variant="secondary"
                   onClick={() => setStep(2)}
+                  disabled={isSubmitting}
                   className="bg-secondary dark:bg-[#1a1f2e] hover:bg-secondary/80 dark:hover:bg-[#252b3b] border-0 text-foreground dark:text-white px-6"
                 >
                   Back
                 </Button>
                 <Button
-                  onClick={handleSubmitDrawing}
-                  className="bg-primary hover:bg-primary/90 px-8"
+                  onClick={submitAnalysis}
+                  disabled={isSubmitting}
+                  className="bg-primary hover:bg-primary/90 px-8 disabled:opacity-50"
                 >
-                  Submit for Analysis
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    "Submit for Analysis"
+                  )}
                 </Button>
               </div>
             </div>

@@ -1,0 +1,87 @@
+import { NextRequest, NextResponse } from "next/server";
+import { saveVoiceResult, countPreviousVoiceTests, getPatientByPid } from "@/lib/db";
+import { supabase } from "@w";
+
+const VOICE_API_URL = process.env.VOICE_API_URL!;
+
+export async function POST(req: NextRequest) {
+  const formData = await req.formData();
+
+  const session_id = formData.get("session_id") as string;
+  const patient_id = formData.get("patient_id") as string;  // human-readable, e.g. PAT-2024-001
+  const age        = formData.get("age") as string;
+  const sex        = formData.get("sex") as string;
+  const file       = formData.get("audio_file") as File;
+
+  if (!session_id || !patient_id || !age || !sex || !file) {
+    return NextResponse.json(
+      { error: "session_id, patient_id, age, sex, and audio_file are required." },
+      { status: 400 }
+    );
+  }
+
+  // ── 1. Resolve patient UUID and auto-calculate test_count ─────────────────
+  // test_count = how many voice tests this patient has had before + 1.
+  // This is passed as 'test_time' to the Voice API.
+  // The frontend never supplies this — we always compute it server-side.
+
+  let test_count: number;
+  try {
+    const patient = await getPatientByPid(patient_id);
+    if (!patient) {
+      return NextResponse.json({ error: `Patient '${patient_id}' not found.` }, { status: 404 });
+    }
+
+    const previous = await countPreviousVoiceTests(patient.id);
+    test_count = previous + 1;
+  } catch (err) {
+    console.error("[voice] Failed to compute test_count:", err);
+    return NextResponse.json({ error: "Could not compute test count." }, { status: 500 });
+  }
+
+  // ── 2. Forward to Voice API with the computed test_count ──────────────────
+  const upstream = new FormData();
+  upstream.append("age",        age);
+  upstream.append("sex",        sex);
+  upstream.append("test_time",  String(test_count));   // Voice API calls it test_time
+  upstream.append("audio_file", file);
+
+  let apiResult: { prediction: number };
+  const t0 = Date.now();
+  try {
+    const response = await fetch(`${VOICE_API_URL}/analyze/voice`, {
+      method: "POST",
+      body: upstream,
+    });
+    if (!response.ok) {
+      const detail = await response.text();
+      return NextResponse.json({ error: `Voice API: ${detail}` }, { status: response.status });
+    }
+    apiResult = await response.json();  // { "prediction": 15.842... }
+  } catch {
+    return NextResponse.json({ error: "Could not reach Voice API." }, { status: 502 });
+  }
+  const processing_time_ms = Date.now() - t0;
+
+  // ── 3. Save to Supabase ────────────────────────────────────────────────────
+  let saved = false;
+  try {
+    await saveVoiceResult(session_id, {
+      age:               parseInt(age),
+      sex,
+      test_count,                         // stored as test_count in DB
+      prediction:        apiResult.prediction,
+      processing_time_ms,
+    });
+    saved = true;
+  } catch (err) {
+    console.error("[voice] Supabase save failed:", err);
+  }
+
+  return NextResponse.json({
+    prediction:        apiResult.prediction,
+    test_count,                            // useful for frontend to display "Test #3"
+    processing_time_ms,
+    saved,
+  });
+}

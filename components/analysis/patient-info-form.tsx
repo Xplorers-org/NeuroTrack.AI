@@ -14,17 +14,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-interface PatientInfoFormProps {
-  onNext: (data: PatientData) => void;
-  onPrevious?: () => void;
-}
-
 export interface PatientData {
   fullName: string;
   patientId: string;
   gender: string;
   age: string;
-  testTime: string;
+}
+
+interface PatientInfoFormProps {
+  onNext: (data: PatientData, mode: "register" | "find") => void;
+  onPrevious?: () => void;
 }
 
 export function PatientInfoForm({ onNext, onPrevious }: PatientInfoFormProps) {
@@ -34,9 +33,9 @@ export function PatientInfoForm({ onNext, onPrevious }: PatientInfoFormProps) {
     patientId: "",
     gender: "",
     age: "",
-    testTime: "",
   });
   const [errors, setErrors] = useState<Partial<PatientData>>({});
+  const [isLoading, setIsLoading] = useState(false);
 
   const validateForm = () => {
     const newErrors: Partial<PatientData> = {};
@@ -46,7 +45,6 @@ export function PatientInfoForm({ onNext, onPrevious }: PatientInfoFormProps) {
       if (!formData.patientId.trim()) newErrors.patientId = "Patient ID is required";
       if (!formData.gender) newErrors.gender = "Gender is required";
       if (!formData.age.trim()) newErrors.age = "Age is required";
-      if (!formData.testTime.trim()) newErrors.testTime = "Test time is required";
     } else {
       if (!formData.patientId.trim()) newErrors.patientId = "Patient ID is required";
     }
@@ -57,7 +55,7 @@ export function PatientInfoForm({ onNext, onPrevious }: PatientInfoFormProps) {
 
   const handleSubmit = () => {
     if (validateForm()) {
-      onNext(formData);
+      onNext(formData, mode);
     }
   };
 
@@ -223,55 +221,37 @@ export function PatientInfoForm({ onNext, onPrevious }: PatientInfoFormProps) {
                   )}
                 </div>
               </div>
-
-              <div>
-                <Label className="text-sm font-medium text-foreground dark:text-gray-300">
-                  Test Time <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  type="time"
-                  value={formData.testTime}
-                  onChange={(e) =>
-                    setFormData({ ...formData, testTime: e.target.value })
-                  }
-                  className={cn(
-                    "mt-2 bg-background dark:bg-[#0f1219] border-border dark:border-white/10",
-                    errors.testTime && "border-destructive"
-                  )}
-                />
-                {errors.testTime && (
-                  <p className="mt-1 text-xs text-destructive">{errors.testTime}</p>
-                )}
-              </div>
             </div>
           ) : (
-            <div>
-              <Label className="text-sm font-medium text-foreground dark:text-gray-300">
-                Patient ID <span className="text-destructive">*</span>
-              </Label>
-              <div className="mt-2 flex items-center gap-3">
-                <Input
-                  placeholder="Enter patient ID"
-                  value={formData.patientId}
-                  onChange={(e) =>
-                    setFormData({ ...formData, patientId: e.target.value })
-                  }
-                  className={cn(
-                    "bg-background dark:bg-[#0f1219] border-border dark:border-white/10",
-                    errors.patientId && "border-destructive"
-                  )}
-                />
-                <Button
-                  type="button"
-                  onClick={handleSubmit}
-                  className="bg-primary hover:bg-primary/90"
-                >
-                  Search
-                </Button>
+            <div className="space-y-5">
+              <div>
+                <Label className="text-sm font-medium text-foreground dark:text-gray-300">
+                  Patient ID <span className="text-destructive">*</span>
+                </Label>
+                <div className="mt-2 flex items-center gap-3">
+                  <Input
+                    placeholder="Enter patient ID"
+                    value={formData.patientId}
+                    onChange={(e) =>
+                      setFormData({ ...formData, patientId: e.target.value })
+                    }
+                    className={cn(
+                      "bg-background dark:bg-[#0f1219] border-border dark:border-white/10",
+                      errors.patientId && "border-destructive"
+                    )}
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleSubmit}
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    Search
+                  </Button>
+                </div>
+                {errors.patientId && (
+                  <p className="text-xs text-destructive mt-1">{errors.patientId}</p>
+                )}
               </div>
-              {errors.patientId && (
-                <p className="text-xs text-destructive mt-1">{errors.patientId}</p>
-              )}
             </div>
           )}
 

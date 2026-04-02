@@ -6,7 +6,9 @@ import { AnalysisSidebar } from "@/components/analysis/analysis-sidebar";
 import { StepIndicator } from "@/components/analysis/step-indicator";
 import { Button } from "@/components/ui/button";
 import { Download, Eye, FileText } from "lucide-react";
+import { Download, Share2, Printer, CheckCircle2, Activity, Brain, TrendingUp, Loader2, Play } from "lucide-react";
 import { PatientData } from "@/components/analysis/patient-info-form";
+import { toast } from "sonner";
 
 type AnalysisHistoryItem = {
   id: string;
@@ -28,105 +30,71 @@ const resultSteps = [
 
 export default function ResultsPage() {
   const router = useRouter();
-  const [patientData] = useState<PatientData | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
+  const [patientData, setPatientData] = useState<PatientData | null>(null);
+  const [voiceResult, setVoiceResult] = useState<any>(null);
+  const [gaitResult, setGaitResult] = useState<any>(null);
+  const [drawingResult, setDrawingResult] = useState<any>(null);
+  const [localVideoUrl, setLocalVideoUrl] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  
+  const completedSteps = ["patient-info", "voice", "drawing", "gait"];
 
     const storedData = sessionStorage.getItem("patientData");
-    return storedData ? JSON.parse(storedData) : null;
-  });
-  const completedSteps = ["patient-info", "voice", "gait", "drawing"];
+    if (storedData) setPatientData(JSON.parse(storedData));
 
-  const [history] = useState<AnalysisHistoryItem[]>(() => {
-    if (typeof window === "undefined") {
-      return [];
+    const vResult = sessionStorage.getItem("voiceResult");
+    if (vResult) setVoiceResult(JSON.parse(vResult));
+
+    const gResult = sessionStorage.getItem("gaitResult");
+    if (gResult) setGaitResult(JSON.parse(gResult));
+
+    const dResult = sessionStorage.getItem("drawingResult");
+    if (dResult) setDrawingResult(JSON.parse(dResult));
+
+    return () => {
+      if (localVideoUrl) URL.revokeObjectURL(localVideoUrl);
+    };
+  }, [localVideoUrl]);
+
+  const handleDownloadVideo = async () => {
+    if (!gaitResult?.annotated_video_url) return;
+    
+    setIsDownloading(true);
+    try {
+      const response = await fetch(gaitResult.annotated_video_url);
+      if (!response.ok) throw new Error("Could not download video");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      setLocalVideoUrl(url);
+      toast.success("Video ready for playback");
+    } catch (error) {
+      console.error("Video download failed:", error);
+      toast.error("Failed to load video preview");
+    } finally {
+      setIsDownloading(false);
     }
-
-    const storedHistory = sessionStorage.getItem("analysisHistory");
-    return storedHistory ? JSON.parse(storedHistory) : [];
-  });
-
-  const sortedHistory = useMemo(
-    () => [...history].sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()),
-    [history],
-  );
-
-  const latestSummary = useMemo(() => {
-    const latestByType: Partial<Record<AnalysisHistoryItem["type"], AnalysisHistoryItem>> = {};
-
-    for (const item of sortedHistory) {
-      if (!latestByType[item.type]) {
-        latestByType[item.type] = item;
-      }
-    }
-
-    return latestByType;
-  }, [sortedHistory]);
-
-  const summaryCards = [
-    {
-      label: "Voice Analysis",
-      key: "voice" as const,
-      color: "text-cyan-500",
-      route: "/analysis/voice",
-    },
-    {
-      label: "Gait Analysis",
-      key: "gait" as const,
-      color: "text-amber-500",
-      route: "/analysis/gait",
-    },
-    {
-      label: "Drawing Analysis",
-      key: "drawing" as const,
-      color: "text-emerald-500",
-      route: "/analysis/drawing",
-    },
-  ];
+  };
 
   const getProgress = () => {
     return { current: 4, total: 4 };
   };
 
-  const downloadFile = (fileName: string, content: string, mimeType: string) => {
-    const blob = new Blob([content], { type: mimeType });
-    const objectUrl = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = objectUrl;
-    link.download = fileName;
-    link.click();
-    URL.revokeObjectURL(objectUrl);
+  // Safe formatting functions
+  const formatVoiceScore = () => {
+    if (!voiceResult) return "N/A";
+    return Number(voiceResult.prediction)?.toFixed(2) || "N/A";
   };
 
-  const handleDownloadJson = () => {
-    const payload = {
-      patient: patientData,
-      generatedAt: new Date().toISOString(),
-      summary: latestSummary,
-      history: sortedHistory,
-    };
-
-    downloadFile("analysis-history-summary.json", JSON.stringify(payload, null, 2), "application/json");
+  const formatGaitScore = () => {
+    if (!gaitResult) return "N/A";
+    return Number(gaitResult.gait_score)?.toFixed(2) || "N/A";
   };
 
-  const handleDownloadCsv = () => {
-    const headers = ["Type", "Source", "File Name", "File Size", "Score", "Severity", "Submitted At"];
-    const rows = sortedHistory.map((item) => [
-      item.type,
-      item.source,
-      item.fileName,
-      item.fileSize,
-      String(item.score),
-      item.severity,
-      new Date(item.submittedAt).toLocaleString(),
-    ]);
-
-    const csvData = [headers, ...rows]
-      .map((row) => row.map((cell) => `"${cell.replaceAll("\"", "\"\"")}"`).join(","))
-      .join("\n");
-
-    downloadFile("analysis-history-summary.csv", csvData, "text/csv;charset=utf-8;");
+  const formatDrawingScore = () => {
+    if (!drawingResult) return "N/A";
+    const spiral = Number(drawingResult.spiral?.sigmoid_probability || 0);
+    const wave = Number(drawingResult.wave?.sigmoid_probability || 0);
+    return (((spiral + wave) / 2) * 100).toFixed(1) + "%";
   };
 
   return (
@@ -136,125 +104,110 @@ export default function ResultsPage() {
         completedSteps={completedSteps}
         progress={getProgress()}
       />
+const hasVideo = videoFile || recordedBlob;
+const previewVideo = videoFile ?? recordedBlob;
+const showRecordingPreview = isRecording || !!recordedBlob;
 
-      <main className="flex-1 ml-60">
-        <div className="max-w-5xl mx-auto px-8 py-12">
-          <div className="mb-4">
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground dark:text-white">
-              Results
-            </h1>
-            <p className="text-muted-foreground dark:text-gray-400 mt-2">
-              Combined summary and history for all 3 analyses.
-            </p>
-          </div>
+// Utility: format file size
+const formatFileSize = (bytes: number) => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+};
 
-          <StepIndicator steps={resultSteps} currentStep={4} />
+// 🔥 MAIN FUNCTION (merged + correct)
+const submitAnalysis = async () => {
+  let videoToSubmit = videoFile || recordedBlob;
 
-          <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-6 mb-6">
-            <h3 className="text-lg font-semibold text-foreground dark:text-white mb-4">Patient Summary</h3>
-            <div className="grid md:grid-cols-4 gap-4 text-sm">
-              <div className="bg-secondary dark:bg-[#0f1219] rounded-lg p-4">
-                <p className="text-muted-foreground dark:text-gray-400">Name</p>
-                <p className="font-semibold text-foreground dark:text-white">{patientData?.fullName || "N/A"}</p>
-              </div>
-              <div className="bg-secondary dark:bg-[#0f1219] rounded-lg p-4">
-                <p className="text-muted-foreground dark:text-gray-400">Patient ID</p>
-                <p className="font-semibold text-foreground dark:text-white">{patientData?.patientId || "N/A"}</p>
-              </div>
-              <div className="bg-secondary dark:bg-[#0f1219] rounded-lg p-4">
-                <p className="text-muted-foreground dark:text-gray-400">Age</p>
-                <p className="font-semibold text-foreground dark:text-white">{patientData?.age || "N/A"}</p>
-              </div>
-              <div className="bg-secondary dark:bg-[#0f1219] rounded-lg p-4">
-                <p className="text-muted-foreground dark:text-gray-400">Gender</p>
-                <p className="font-semibold text-foreground dark:text-white capitalize">{patientData?.gender || "N/A"}</p>
-              </div>
-            </div>
-          </div>
+  // Validation
+  if (!videoToSubmit) {
+    toast.error("Please upload or record a video.");
+    return;
+  }
 
-          <div className="grid md:grid-cols-3 gap-4 mb-6">
-            {summaryCards.map((card) => {
-              const result = latestSummary[card.key];
+  if (!sessionId || !patientData) {
+    toast.error("Missing session or patient data.");
+    return;
+  }
 
-              return (
-                <div key={card.key} className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-5">
-                  <p className="text-sm text-muted-foreground dark:text-gray-400">{card.label}</p>
-                  <p className={`text-3xl font-bold mt-2 ${card.color}`}>
-                    {result ? result.score.toFixed(1) : "N/A"}
-                  </p>
-                  <p className="text-sm text-foreground dark:text-white mt-1">{result ? result.severity : "Pending"}</p>
-                  <p className="text-xs text-muted-foreground dark:text-gray-400 mt-2">
-                    {result ? new Date(result.submittedAt).toLocaleString() : "No submission yet"}
-                  </p>
-                  <Button
-                    variant="outline"
-                    onClick={() => router.push(card.route)}
-                    className="mt-4 w-full border-border dark:border-white/10"
-                  >
-                    <Eye className="w-4 h-4 mr-2" />
-                    View
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
+  // Convert Blob → File (important for FormData)
+  if (recordedBlob && !videoFile) {
+    videoToSubmit = new File([recordedBlob], "recorded_gait.webm", {
+      type: "video/webm",
+    });
+  }
 
-          <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-foreground dark:text-white">Analysis History</h3>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={handleDownloadCsv} className="border-border dark:border-white/10">
-                  <Download className="w-4 h-4 mr-2" />
-                  Download CSV
-                </Button>
-                <Button onClick={handleDownloadJson} className="bg-primary hover:bg-primary/90">
-                  <FileText className="w-4 h-4 mr-2" />
-                  Download JSON
-                </Button>
-              </div>
-            </div>
+  setIsSubmitting(true);
 
-            {sortedHistory.length === 0 ? (
-              <p className="text-sm text-muted-foreground dark:text-gray-400">No analysis history available yet.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left border-b border-border dark:border-white/10">
-                      <th className="py-3 pr-4">Type</th>
-                      <th className="py-3 pr-4">Source</th>
-                      <th className="py-3 pr-4">File</th>
-                      <th className="py-3 pr-4">Score</th>
-                      <th className="py-3 pr-4">Severity</th>
-                      <th className="py-3 pr-4">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedHistory.map((item) => (
-                      <tr key={item.id} className="border-b border-border/60 dark:border-white/10">
-                        <td className="py-3 pr-4 capitalize text-foreground dark:text-white">{item.type}</td>
-                        <td className="py-3 pr-4 text-muted-foreground dark:text-gray-400">{item.source}</td>
-                        <td className="py-3 pr-4 text-muted-foreground dark:text-gray-400">{item.fileName}</td>
-                        <td className="py-3 pr-4 text-foreground dark:text-white">{item.score.toFixed(1)}</td>
-                        <td className="py-3 pr-4 text-foreground dark:text-white">{item.severity}</td>
-                        <td className="py-3 pr-4 text-muted-foreground dark:text-gray-400">
-                          {new Date(item.submittedAt).toLocaleString()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+  try {
+    const formData = new FormData();
+    formData.append("session_id", sessionId);
+    formData.append("gender", patientData.gender);
+    formData.append("video", videoToSubmit, "gait_video.mp4");
 
+    const res = await fetch("/api/analyze/gait", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) {
+      let errorMessage = "Failed to analyze gait";
+
+      try {
+        const errorData = await res.json();
+        errorMessage = errorData.error || errorMessage;
+      } catch {
+        // ignore JSON parse error
+      }
+
+      throw new Error(errorMessage);
+    }
+
+    const result = await res.json();
+
+    // Save result
+    sessionStorage.setItem("gaitResult", JSON.stringify(result));
+
+    // Save history
+    const existingHistory = sessionStorage.getItem("analysisHistory");
+    const parsedHistory = existingHistory ? JSON.parse(existingHistory) : [];
+
+    parsedHistory.push({
+      id: `${Date.now()}-gait`,
+      type: "gait",
+      source: videoFile ? "upload" : "webcam-recording",
+      fileName: videoToSubmit.name,
+      fileSize: formatFileSize(videoToSubmit.size),
+      submittedAt: new Date().toISOString(),
+    });
+
+    sessionStorage.setItem("analysisHistory", JSON.stringify(parsedHistory));
+
+    // UI feedback
+    toast.success("Gait analysis complete.");
+
+    setCompletedSteps((prev) => [...prev, "gait"]);
+
+    // Navigate to results
+    router.push("/analysis/results");
+
+  } catch (err) {
+    if (err instanceof Error) {
+      toast.error(err.message);
+    } else {
+      toast.error("Unexpected error occurred.");
+    }
+  } finally {
+    setIsSubmitting(false);
+  }
+};
           <div className="flex gap-4">
             <Button
               variant="outline"
-              onClick={() => router.push("/analysis/dashboard")}
+              onClick={() => router.push("/analysis")}
               className="border-border dark:border-white/10"
             >
-              Back to Dashboard
+              Start New Analysis
             </Button>
             <Button
               onClick={() => {
@@ -264,7 +217,7 @@ export default function ResultsPage() {
               }}
               className="bg-primary hover:bg-primary/90"
             >
-              Start New Analysis
+              Finish & Return Home
             </Button>
           </div>
         </div>
