@@ -1,33 +1,36 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnalysisSidebar } from "@/components/analysis/analysis-sidebar";
+import { AnalysisCompleteDialog } from "@/components/analysis/analysis-complete-dialog";
 import { StepIndicator } from "@/components/analysis/step-indicator";
 import { VoiceAnalysis } from "@/components/analysis/voice-analysis";
 import { PatientData } from "@/components/analysis/patient-info-form";
 import { Button } from "@/components/ui/button";
+import { AlertTriangle, CheckCircle2, CircleCheck } from "lucide-react";
 
 const voiceSteps = [
   { id: 1, title: "Upload/Record", subtitle: "Voice sample" },
   { id: 2, title: "Preview", subtitle: "Review your recording" },
   { id: 3, title: "Submit", subtitle: "Confirm and analyze" },
+  { id: 4, title: "Results", subtitle: "View summary" },
 ];
 
 export default function VoiceAnalysisPage() {
   const router = useRouter();
   const [voiceStep, setVoiceStep] = useState(1);
-  const [patientData, setPatientData] = useState<PatientData | null>(null);
+  const [resultActionsOpen, setResultActionsOpen] = useState(false);
+  const [patientData] = useState<PatientData | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    const storedData = sessionStorage.getItem("patientData");
+    return storedData ? JSON.parse(storedData) : null;
+  });
   const [audioData, setAudioData] = useState<File | Blob | null>(null);
   const [completedSteps, setCompletedSteps] = useState<string[]>(["patient-info"]);
-
-  useEffect(() => {
-    // Get patient data from sessionStorage
-    const storedData = sessionStorage.getItem("patientData");
-    if (storedData) {
-      setPatientData(JSON.parse(storedData));
-    }
-  }, []);
 
   const handleVoiceNext = (file: File | Blob) => {
     setAudioData(file);
@@ -44,6 +47,67 @@ export default function VoiceAnalysisPage() {
 
   const getProgress = () => {
     return { current: completedSteps.length, total: 3 };
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
+  const handleOpenResultAction = () => {
+    setResultActionsOpen(true);
+  };
+
+  const handleGoToCurrentVoiceResult = () => {
+    setResultActionsOpen(false);
+    setVoiceStep(4);
+  };
+
+  const closeDialogAndNavigate = (path: string) => {
+    setResultActionsOpen(false);
+    router.push(path);
+  };
+
+  const handleSubmitAnalysis = () => {
+    if (!audioData) {
+      return;
+    }
+
+    const audioName = audioData instanceof File ? audioData.name : "recorded-sample.webm";
+    const audioSize = formatFileSize(audioData.size);
+    const submissionPayload = {
+      patientName: patientData?.fullName || "N/A",
+      age: patientData?.age || "N/A",
+      gender: patientData?.gender || "N/A",
+      audioName,
+      audioSize,
+      submittedAt: new Date().toISOString(),
+      updrsScore: 29.0,
+      severity: "Moderate",
+    };
+
+    sessionStorage.setItem("voiceAnalysisSubmission", JSON.stringify(submissionPayload));
+
+    const existingHistory = sessionStorage.getItem("analysisHistory");
+    const parsedHistory: Array<Record<string, string | number>> = existingHistory
+      ? JSON.parse(existingHistory)
+      : [];
+
+    parsedHistory.push({
+      id: `${Date.now()}-voice`,
+      type: "voice",
+      source: audioData instanceof File ? "upload" : "recording",
+      fileName: audioName,
+      fileSize: audioSize,
+      score: 29.0,
+      severity: "Moderate",
+      submittedAt: submissionPayload.submittedAt,
+    });
+
+    sessionStorage.setItem("analysisHistory", JSON.stringify(parsedHistory));
+    setCompletedSteps([...completedSteps, "voice"]);
+    setVoiceStep(4);
   };
 
   return (
@@ -117,43 +181,52 @@ export default function VoiceAnalysisPage() {
           )}
 
           {voiceStep === 3 && (
-            <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-8">
-              <h3 className="text-xl font-semibold text-foreground dark:text-white mb-2">
-                Submit
-              </h3>
-              <p className="text-sm text-muted-foreground dark:text-gray-400 mb-6">
-                Confirm and analyze
-              </p>
+            <div className="space-y-6">
+              <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-10 text-center">
+            <div className="flex  items-center mb-2">
+                  <div className="w-18 h-18 rounded-full bg-primary/15 flex items-center justify-center  mb-6">
+                  <CheckCircle2 className="w-10 h-10 text-primary" />
+                </div>
+                <h3 className="text-4xl font-bold text-foreground dark:text-white mb-4 mx-15">
+                  Ready for UPDRS Analysis
+                </h3>
+            </div>
+                <p className="text-md text-muted-foreground dark:text-gray-300 max-w-3xl mx-auto">
+                  Your voice sample will be analyzed using our AI model to estimate UPDRS motor symptoms related to Parkinson&apos;s disease.
+                </p>
+              </div>
 
-              <div className="bg-secondary dark:bg-[#0f1219] rounded-xl p-6 mb-6 space-y-4">
-                <div className="flex justify-between items-center py-2 border-b border-border dark:border-white/10">
-                  <span className="text-muted-foreground dark:text-gray-400">Patient Name</span>
-                  <span className="font-medium text-foreground dark:text-white">
-                    {patientData?.fullName || "N/A"}
-                  </span>
+              <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-6">
+                <h4 className="text-2xl font-semibold text-foreground dark:text-white mb-5">
+                  Submission Summary
+                </h4>
+                <div className="grid sm:grid-cols-2 gap-4 text-base">
+                  <p className="text-muted-foreground dark:text-gray-400">Patient:</p>
+                  <p className="text-foreground dark:text-white font-semibold">{patientData?.fullName || "N/A"}</p>
+
+                  <p className="text-muted-foreground dark:text-gray-400">Age:</p>
+                  <p className="text-foreground dark:text-white font-semibold">{patientData?.age || "N/A"} years</p>
+
+                  <p className="text-muted-foreground dark:text-gray-400">Gender:</p>
+                  <p className="text-foreground dark:text-white font-semibold capitalize">{patientData?.gender || "N/A"}</p>
+
+                  <p className="text-muted-foreground dark:text-gray-400">Audio:</p>
+                  <p className="text-foreground dark:text-white font-semibold break-all">
+                    {audioData ? `${audioData instanceof File ? audioData.name : "recorded-sample.webm"} (${formatFileSize(audioData.size)})` : "N/A"}
+                  </p>
                 </div>
-                <div className="flex justify-between items-center py-2 border-b border-border dark:border-white/10">
-                  <span className="text-muted-foreground dark:text-gray-400">Patient ID</span>
-                  <span className="font-medium text-foreground dark:text-white">
-                    {patientData?.patientId || "N/A"}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-border dark:border-white/10">
-                  <span className="text-muted-foreground dark:text-gray-400">Gender</span>
-                  <span className="font-medium text-foreground dark:text-white capitalize">
-                    {patientData?.gender || "N/A"}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-border dark:border-white/10">
-                  <span className="text-muted-foreground dark:text-gray-400">Age</span>
-                  <span className="font-medium text-foreground dark:text-white">
-                    {patientData?.age || "N/A"}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-muted-foreground dark:text-gray-400">Audio Status</span>
-                  <span className="font-medium text-primary">Ready for analysis</span>
-                </div>
+              </div>
+
+              <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-6">
+                <h4 className="text-2xl font-semibold text-foreground dark:text-white mb-4">
+                  About UPDRS Analysis
+                </h4>
+                <ul className="space-y-2 text-muted-foreground dark:text-gray-300 list-disc list-inside">
+                  <li>UPDRS scores range from 0 to 108.</li>
+                  <li>Lower scores indicate milder symptoms.</li>
+                  <li>This analysis is based on voice patterns.</li>
+                  <li>Results are for screening purposes only.</li>
+                </ul>
               </div>
 
               <div className="flex justify-between mt-8">
@@ -162,22 +235,185 @@ export default function VoiceAnalysisPage() {
                   onClick={() => setVoiceStep(2)}
                   className="bg-secondary dark:bg-[#1a1f2e] hover:bg-secondary/80 dark:hover:bg-[#252b3b] border-0 text-foreground dark:text-white px-6"
                 >
+                  Previous
+                </Button>
+                <Button
+                  onClick={handleSubmitAnalysis}
+                  className="bg-primary hover:bg-primary/90 px-8"
+                >
+                  Submit Analysis
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {voiceStep === 4 && (
+            <div className="space-y-6">
+              <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-8">
+                <div className="flex items-start justify-between gap-6">
+                  <div>
+                    <h3 className="text-2xl md:text-3xl font-bold text-foreground dark:text-white">
+                      Analysis Results
+                    </h3>
+                    <p className="text-sm text-muted-foreground dark:text-gray-400 mt-2">
+                      Detailed results of your voice analysis for Parkinson&apos;s disease prediction.
+                    </p>
+                  </div>
+                  <AlertTriangle className="w-6 h-6 text-amber-500 shrink-0" />
+                </div>
+
+                <div className="mt-6 rounded-xl border border-primary/40 dark:border-primary/30 border-l-4 p-5 bg-primary/5 dark:bg-primary/10">
+                  <h4 className="text-xl font-semibold text-primary mb-2">Analysis Complete</h4>
+                  <p className="text-sm text-foreground dark:text-white">
+                    Patient: <span className="font-semibold text-primary">{patientData?.fullName || "N/A"}</span>
+                  </p>
+                  <p className="text-lg font-semibold text-foreground dark:text-white mt-2">
+                    UPDRS Prediction: <span className="text-amber-500">29.0</span>
+                    <span className="text-muted-foreground"> / 108</span>
+                    <span className="ml-3 text-xs bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300 px-2.5 py-1 rounded-full align-middle">
+                      Moderate
+                    </span>
+                  </p>
+                </div>
+
+                <div className="mt-6 bg-secondary dark:bg-[#0f1219] rounded-lg p-4 inline-block">
+                  <p className="text-sm text-muted-foreground dark:text-gray-400">Patient</p>
+                  <p className="font-semibold text-foreground dark:text-white">{patientData?.fullName || "N/A"}</p>
+                  <p className="text-sm text-primary mt-1">UPDRS Prediction: 29.0</p>
+                </div>
+
+                <div className="text-center mt-8">
+                  <p className="tracking-[0.2em] text-xs text-muted-foreground dark:text-gray-400">UPDRS PREDICTION SCORE</p>
+                  <p className="text-sm text-muted-foreground dark:text-gray-400 mb-2">
+                    for {patientData?.fullName || "Patient"}
+                  </p>
+                  <p className="text-7xl font-bold text-amber-500 leading-none">
+                    29.0<span className="text-4xl text-muted-foreground">/108</span>
+                  </p>
+                  <p className="mt-3 text-3xl font-bold text-foreground dark:text-white uppercase">
+                    Moderate Severity
+                  </p>
+                  <p className="text-sm text-muted-foreground dark:text-gray-400 mt-2">
+                    Some tremor, speech changes, or slower movement possible.
+                  </p>
+                </div>
+
+                <div className="mt-6">
+                  <div className="flex justify-between text-xs md:text-sm text-foreground dark:text-white mb-2">
+                    <span>Mild (0-20)</span>
+                    <span>Moderate (21-40)</span>
+                    <span>Advanced (41-60)</span>
+                    <span>Severe (61+)</span>
+                  </div>
+                  <div className="h-3 rounded-full bg-secondary dark:bg-[#0f1219] overflow-hidden">
+                    <div className="h-full bg-primary" style={{ width: "26.85%" }} />
+                  </div>
+                </div>
+
+                <div className="mt-6 bg-secondary dark:bg-[#0f1219] rounded-lg p-4">
+                  <p className="text-sm text-muted-foreground dark:text-gray-400">Severity Level:</p>
+                  <p className="text-xl font-semibold text-amber-500">Moderate</p>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-6">
+                  <h4 className="text-2xl font-bold text-foreground dark:text-white mb-4">What is UPDRS?</h4>
+                  <p className="text-sm text-muted-foreground dark:text-gray-400 mb-4">
+                    The UPDRS is a comprehensive rating scale used to evaluate the severity of Parkinson&apos;s disease symptoms. Our voice analysis estimates motor symptoms based on speech patterns.
+                  </p>
+                  <ul className="space-y-2 text-sm text-foreground dark:text-white">
+                    <li><span className="font-semibold">0-20:</span> Mild/Early - Very light or early signs</li>
+                    <li><span className="font-semibold">21-40:</span> Moderate - Some tremor, speech changes possible</li>
+                    <li><span className="font-semibold">41-60:</span> Advanced - Noticeable speech/movement difficulties</li>
+                    <li><span className="font-semibold">61+:</span> Severe - Significant motor impairment</li>
+                  </ul>
+                </div>
+
+                <div className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-6">
+                  <h4 className="text-2xl font-bold text-foreground dark:text-white mb-4">Your Result</h4>
+                  <div className="bg-secondary dark:bg-[#0f1219] rounded-lg p-6 text-center mb-4">
+                    <p className="text-5xl font-bold text-amber-500">29.0</p>
+                    <p className="text-2xl font-semibold text-foreground dark:text-white mt-2">Moderate severity</p>
+                    <p className="text-sm text-muted-foreground dark:text-gray-400 mt-2">Some tremor, speech changes, or slower movement possible.</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground dark:text-gray-400">
+                    Important: This is a screening tool based on voice analysis only. Please consult a healthcare professional for proper diagnosis and treatment.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-6">
+                <h4 className="text-3xl font-bold text-foreground dark:text-white mb-1">Recommendations</h4>
+                <p className="text-sm text-muted-foreground dark:text-gray-400 mb-4">Based on your analysis results</p>
+                <div className="space-y-3">
+                  {[
+                    "Consult with a neurologist for proper evaluation",
+                    "Regular exercise and physical activity are important",
+                    "Consider speech exercises if speech changes are noted",
+                    "Maintain a healthy diet and lifestyle",
+                    "Keep a symptom diary for medical appointments",
+                  ].map((item) => (
+                    <div key={item} className="flex items-center gap-3 rounded-lg bg-secondary dark:bg-[#0f1219] p-3">
+                      <CircleCheck className="w-4 h-4 text-primary shrink-0" />
+                      <p className="text-sm text-foreground dark:text-white">{item}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-6">
+                <h4 className="text-2xl font-semibold text-foreground dark:text-white mb-4">
+                  Submission Summary
+                </h4>
+                <div className="grid sm:grid-cols-2 gap-4 text-base">
+                  <p className="text-muted-foreground dark:text-gray-400">Patient:</p>
+                  <p className="text-foreground dark:text-white font-semibold">{patientData?.fullName || "N/A"}</p>
+
+                  <p className="text-muted-foreground dark:text-gray-400">Age:</p>
+                  <p className="text-foreground dark:text-white font-semibold">{patientData?.age || "N/A"} years</p>
+
+                  <p className="text-muted-foreground dark:text-gray-400">Gender:</p>
+                  <p className="text-foreground dark:text-white font-semibold capitalize">{patientData?.gender || "N/A"}</p>
+
+                  <p className="text-muted-foreground dark:text-gray-400">Audio:</p>
+                  <p className="text-foreground dark:text-white font-semibold break-all">
+                    {audioData ? `${audioData instanceof File ? audioData.name : "recorded-sample.webm"} (${formatFileSize(audioData.size)})` : "N/A"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex justify-between mt-8">
+                <Button
+                  variant="secondary"
+                  onClick={() => setVoiceStep(3)}
+                  className="bg-secondary dark:bg-[#1a1f2e] hover:bg-secondary/80 dark:hover:bg-[#252b3b] border-0 text-foreground dark:text-white px-6"
+                >
                   Back
                 </Button>
                 <Button
-                  onClick={() => {
-                    setCompletedSteps([...completedSteps, "voice"]);
-                    router.push("/analysis/gait");
-                  }}
+                  onClick={handleOpenResultAction}
                   className="bg-primary hover:bg-primary/90 px-8"
                 >
-                  Submit for Analysis
+                  Done
                 </Button>
               </div>
             </div>
           )}
         </div>
       </main>
+
+      <AnalysisCompleteDialog
+        open={resultActionsOpen}
+        onOpenChange={setResultActionsOpen}
+        completedAnalysisLabel="voice"
+        primaryActions={[
+          { label: "Continue to Drawing Analysis", onClick: () => closeDialogAndNavigate("/analysis/drawing") },
+          { label: "Continue to Gait Analysis", onClick: () => closeDialogAndNavigate("/analysis/gait") },
+        ]}
+        onViewCurrentResult={handleGoToCurrentVoiceResult}
+        onViewDashboard={() => closeDialogAndNavigate("/analysis/dashboard")}
+      />
     </div>
   );
 }

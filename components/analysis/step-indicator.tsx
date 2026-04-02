@@ -16,7 +16,7 @@ interface StepIndicatorProps {
 
 export function StepIndicator({ steps, currentStep }: StepIndicatorProps) {
   return (
-    <div className="flex items-center justify-center gap-0 py-8">
+    <div className="flex items-center justify-center gap-0 py-5">
       {steps.map((step, index) => {
         const isCompleted = step.id < currentStep;
         const isActive = step.id === currentStep;
@@ -30,9 +30,9 @@ export function StepIndicator({ steps, currentStep }: StepIndicatorProps) {
                 className={cn(
                   "flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300",
                   isCompleted
-                    ? "bg-cyan-500 text-white"
+                    ? "bg-blue-500 text-white"
                     : isActive
-                      ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/30"
+                      ? "bg-blue-400 text-white shadow-lg shadow-cyan-500/30"
                       : "bg-muted dark:bg-white/10 text-muted-foreground dark:text-gray-400"
                 )}
               >
@@ -67,7 +67,7 @@ export function StepIndicator({ steps, currentStep }: StepIndicatorProps) {
                 className={cn(
                   "w-32 h-0.5 mx-4 mt-[-2rem]",
                   isCompleted
-                    ? "bg-cyan-500"
+                    ? "bg-blue-500"
                     : "bg-muted dark:bg-white/10"
                 )}
               />

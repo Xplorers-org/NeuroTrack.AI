@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { AnalysisCompleteDialog } from "@/components/analysis/analysis-complete-dialog";
 import { AnalysisSidebar } from "@/components/analysis/analysis-sidebar";
 import { StepIndicator } from "@/components/analysis/step-indicator";
 import { Button } from "@/components/ui/button";
@@ -12,11 +13,13 @@ const gaitSteps = [
   { id: 1, title: "Upload/Record", subtitle: "Gait video" },
   { id: 2, title: "Preview", subtitle: "Review your video" },
   { id: 3, title: "Submit", subtitle: "Confirm and analyze" },
+  { id: 4, title: "Results", subtitle: "View combined summary" },
 ];
 
 export default function GaitAnalysisPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
+  const [resultActionsOpen, setResultActionsOpen] = useState(false);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
@@ -131,6 +134,50 @@ export default function GaitAnalysisPage() {
   const hasVideo = videoFile || recordedBlob;
   const previewVideo = videoFile ?? recordedBlob;
   const showRecordingPreview = isRecording || !!recordedBlob;
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
+  const handleSubmitGait = () => {
+    if (!hasVideo) {
+      return;
+    }
+
+    const selectedVideo = videoFile ?? recordedBlob;
+    if (!selectedVideo) {
+      return;
+    }
+
+    const fileName = videoFile ? videoFile.name : "recorded-gait.webm";
+    const fileSize = formatFileSize(selectedVideo.size);
+
+    const existingHistory = sessionStorage.getItem("analysisHistory");
+    const parsedHistory: Array<Record<string, string | number>> = existingHistory
+      ? JSON.parse(existingHistory)
+      : [];
+
+    parsedHistory.push({
+      id: `${Date.now()}-gait`,
+      type: "gait",
+      source: videoFile ? "upload" : "webcam-recording",
+      fileName,
+      fileSize,
+      score: 72,
+      severity: "Mild irregularity",
+      submittedAt: new Date().toISOString(),
+    });
+
+    sessionStorage.setItem("analysisHistory", JSON.stringify(parsedHistory));
+    setStep(4);
+  };
+
+  const closeDialogAndNavigate = (path: string) => {
+    setResultActionsOpen(false);
+    router.push(path);
+  };
 
   const getProgress = () => {
     return { current: completedSteps.length, total: 3 };
@@ -390,7 +437,7 @@ export default function GaitAnalysisPage() {
                   Back
                 </Button>
                 <Button
-                  onClick={() => router.push("/analysis/drawing")}
+                  onClick={handleSubmitGait}
                   className="bg-primary hover:bg-primary/90 px-8"
                 >
                   Submit for Analysis
@@ -398,8 +445,69 @@ export default function GaitAnalysisPage() {
               </div>
             </div>
           )}
+
+          {step === 4 && (
+            <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-8">
+              <h3 className="text-xl font-semibold text-foreground dark:text-white mb-2">
+                Results
+              </h3>
+              <p className="text-sm text-muted-foreground dark:text-gray-400 mb-6">
+                Gait analysis result summary
+              </p>
+
+              <div className="space-y-4">
+                <div className="bg-secondary dark:bg-[#0f1219] rounded-xl p-5">
+                  <p className="text-sm text-muted-foreground dark:text-gray-400">Gait Score</p>
+                  <p className="text-4xl font-bold text-primary">72.0</p>
+                  <p className="text-sm text-amber-500 font-medium">Mild irregularity</p>
+                </div>
+
+                <div className="bg-secondary dark:bg-[#0f1219] rounded-xl p-5">
+                  <p className="text-sm text-muted-foreground dark:text-gray-400">Video Submitted</p>
+                  <p className="text-sm text-foreground dark:text-white break-all">
+                    {videoFile
+                      ? `${videoFile.name} (${formatFileSize(videoFile.size)})`
+                      : recordedBlob
+                        ? `recorded-gait.webm (${formatFileSize(recordedBlob.size)})`
+                        : "N/A"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex justify-between mt-8">
+                <Button
+                  variant="secondary"
+                  onClick={() => setStep(3)}
+                  className="bg-secondary dark:bg-[#1a1f2e] hover:bg-secondary/80 dark:hover:bg-[#252b3b] border-0 text-foreground dark:text-white px-6"
+                >
+                  Back
+                </Button>
+                <Button
+                  onClick={() => setResultActionsOpen(true)}
+                  className="bg-primary hover:bg-primary/90 px-8"
+                >
+                  Done
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </main>
+
+      <AnalysisCompleteDialog
+        open={resultActionsOpen}
+        onOpenChange={setResultActionsOpen}
+        completedAnalysisLabel="gait"
+        primaryActions={[
+          { label: "Continue to Voice Analysis", onClick: () => closeDialogAndNavigate("/analysis/voice") },
+          { label: "Continue to Drawing Analysis", onClick: () => closeDialogAndNavigate("/analysis/drawing") },
+        ]}
+        onViewCurrentResult={() => {
+          setResultActionsOpen(false);
+          setStep(4);
+        }}
+        onViewDashboard={() => closeDialogAndNavigate("/analysis/dashboard")}
+      />
     </div>
   );
 }
