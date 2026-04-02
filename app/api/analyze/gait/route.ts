@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { saveGaitResult } from "@/lib/db";
 
-const GAIT_API_URL = process.env.GAIT_API_URL!;
+const GAIT_API_URL = process.env.GAIT_API_URL;
 
 export async function POST(req: NextRequest) {
+  if (!GAIT_API_URL) {
+    return NextResponse.json(
+      { error: "GAIT_API_URL is not configured." },
+      { status: 500 }
+    );
+  }
+
   const formData = await req.formData();
 
   const session_id = formData.get("session_id") as string;
@@ -22,10 +29,11 @@ export async function POST(req: NextRequest) {
   upstream.append("video", file);
   upstream.append("gender", gender);
 
-  let apiResult: any;
+  let apiResult: Record<string, unknown>;
   const t0 = Date.now();
   try {
-    const response = await fetch(`${GAIT_API_URL}/analyze_files`, {
+    const baseUrl = GAIT_API_URL.replace(/\/+$/, "");
+    const response = await fetch(`${baseUrl}/analyze`, {
       method: "POST",
       body: upstream,
     });
@@ -33,20 +41,42 @@ export async function POST(req: NextRequest) {
       const detail = await response.text();
       return NextResponse.json({ error: `Gait API: ${detail}` }, { status: response.status });
     }
-    apiResult = await response.json(); 
+    apiResult = await response.json();
   } catch (err) {
-    console.error("Gait API Error:", err);
-    return NextResponse.json({ error: "Could not reach Gait API." }, { status: 502 });
+    const message = err instanceof Error ? err.message : "Unknown network error";
+    return NextResponse.json(
+      { error: `Could not reach Gait API. ${message}` },
+      { status: 502 }
+    );
   }
   const processing_time_ms = Date.now() - t0;
 
   // Extract necessary fields
-  const gait_score = apiResult.gait_stability_score;
-  const annotatedPath = apiResult.download_urls?.annotated_video;
-  const annotated_video_url = annotatedPath ? `${GAIT_API_URL}${annotatedPath}` : null;
+  const gait_score_candidate =
+    (apiResult.gait_stability_score as number | undefined) ??
+    (apiResult.gait_score as number | undefined) ??
+    (apiResult.score as number | undefined);
 
-  if (typeof gait_score === 'undefined') {
-    return NextResponse.json({ error: "Gait API did not return gait_stability_score." }, { status: 500 });
+  const gait_score = typeof gait_score_candidate === "number"
+    ? gait_score_candidate
+    : undefined;
+
+  const downloadUrls = apiResult.download_urls as Record<string, unknown> | undefined;
+  const annotatedPath =
+    (downloadUrls?.annotated_video as string | undefined) ??
+    (apiResult.annotated_video_url as string | undefined);
+
+  const annotated_video_url = annotatedPath
+    ? annotatedPath.startsWith("http")
+      ? annotatedPath
+      : `${GAIT_API_URL.replace(/\/+$/, "")}${annotatedPath}`
+    : null;
+
+  if (typeof gait_score === "undefined") {
+    return NextResponse.json(
+      { error: "Gait API did not return a gait score field." },
+      { status: 500 }
+    );
   }
 
   // ── 2. Save only the score to Supabase ────────────────────────────────────

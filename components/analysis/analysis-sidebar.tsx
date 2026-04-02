@@ -60,6 +60,12 @@ export function AnalysisSidebar({
       href: "/analysis/gait",
     },
     {
+      id: "dashboard",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+      href: "/analysis/dashboard",
+    },
+    {
       id: "results",
       label: "Results",
       icon: FileText,

@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { saveVoiceResult, countPreviousVoiceTests, getPatientByPid } from "@/lib/db";
-import { supabase } from "@w";
 
-const VOICE_API_URL = process.env.VOICE_API_URL!;
+const VOICE_API_URL = process.env.VOICE_API_URL;
 
 export async function POST(req: NextRequest) {
+  if (!VOICE_API_URL) {
+    return NextResponse.json(
+      { error: "VOICE_API_URL is not configured." },
+      { status: 500 }
+    );
+  }
+
   const formData = await req.formData();
 
   const session_id = formData.get("session_id") as string;
@@ -49,7 +55,8 @@ export async function POST(req: NextRequest) {
   let apiResult: { prediction: number };
   const t0 = Date.now();
   try {
-    const response = await fetch(`${VOICE_API_URL}/analyze/voice`, {
+    const baseUrl = VOICE_API_URL.replace(/\/+$/, "");
+    const response = await fetch(`${baseUrl}/analyze/voice`, {
       method: "POST",
       body: upstream,
     });
@@ -58,8 +65,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Voice API: ${detail}` }, { status: response.status });
     }
     apiResult = await response.json();  // { "prediction": 15.842... }
-  } catch {
-    return NextResponse.json({ error: "Could not reach Voice API." }, { status: 502 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown network error";
+    return NextResponse.json(
+      { error: `Could not reach Voice API. ${message}` },
+      { status: 502 }
+    );
   }
   const processing_time_ms = Date.now() - t0;
 

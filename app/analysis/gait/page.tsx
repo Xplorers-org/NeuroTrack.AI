@@ -15,8 +15,19 @@ const gaitSteps = [
   { id: 1, title: "Upload/Record", subtitle: "Gait video" },
   { id: 2, title: "Preview", subtitle: "Review your video" },
   { id: 3, title: "Submit", subtitle: "Confirm and analyze" },
-  { id: 4, title: "Results", subtitle: "View combined summary" },
+  { id: 4, title: "Results", subtitle: "View result summary" },
 ];
+
+type PatientSessionData = {
+  gender?: string;
+};
+
+type GaitAnalysisResult = {
+  gait_score: number;
+  annotated_video_url?: string | null;
+  processing_time_ms?: number;
+  saved?: boolean;
+};
 
 export default function GaitAnalysisPage() {
   const router = useRouter();
@@ -39,7 +50,8 @@ export default function GaitAnalysisPage() {
   ]);
 
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [patientData, setPatientData] = useState<any>(null);
+  const [patientData, setPatientData] = useState<PatientSessionData | null>(null);
+  const [gaitResult, setGaitResult] = useState<GaitAnalysisResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -48,6 +60,11 @@ export default function GaitAnalysisPage() {
 
     const storedPatient = sessionStorage.getItem("patientData");
     if (storedPatient) setPatientData(JSON.parse(storedPatient));
+
+    const storedGaitResult = sessionStorage.getItem("gaitResult");
+    if (storedGaitResult) {
+      setGaitResult(JSON.parse(storedGaitResult));
+    }
 
     return () => {
       stopStream();
@@ -153,9 +170,6 @@ export default function GaitAnalysisPage() {
   };
 
   const hasVideo = videoFile || recordedBlob;
-  const previewVideo = videoFile ?? recordedBlob;
-  const showRecordingPreview = isRecording || !!recordedBlob;
-
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -163,45 +177,25 @@ export default function GaitAnalysisPage() {
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
-  const handleSubmitGait = () => {
-    if (!hasVideo) {
-      return;
-    }
-
-    const selectedVideo = videoFile ?? recordedBlob;
-    if (!selectedVideo) {
-      return;
-    }
-
-    const fileName = videoFile ? videoFile.name : "recorded-gait.webm";
-    const fileSize = formatFileSize(selectedVideo.size);
-
-    const existingHistory = sessionStorage.getItem("analysisHistory");
-    const parsedHistory: Array<Record<string, string | number>> = existingHistory
-      ? JSON.parse(existingHistory)
-      : [];
-
-    parsedHistory.push({
-      id: `${Date.now()}-gait`,
-      type: "gait",
-      source: videoFile ? "upload" : "webcam-recording",
-      fileName,
-      fileSize,
-      score: 72,
-      severity: "Mild irregularity",
-      submittedAt: new Date().toISOString(),
-    });
-
-    sessionStorage.setItem("analysisHistory", JSON.stringify(parsedHistory));
-    setStep(4);
-  };
-
   const closeDialogAndNavigate = (path: string) => {
     setResultActionsOpen(false);
     router.push(path);
+  };
+
+  const getSeverityFromScore = (score: number) => {
+    if (score < 40) return "Low irregularity";
+    if (score < 70) return "Moderate irregularity";
+    return "High irregularity";
+  };
+
+  const getSeverityDescription = (severity: string) => {
+    if (severity === "Low irregularity") return "Walking pattern looks relatively stable.";
+    if (severity === "Moderate irregularity") return "Some balance or cadence changes may be present.";
+    return "Marked gait irregularity may be present.";
+  };
 
   const submitAnalysis = async () => {
-    let videoToSubmit = (videoFile || recordedBlob) as any;
+    let videoToSubmit: File | Blob | null = videoFile || recordedBlob;
     if (!videoToSubmit || !sessionId || !patientData) {
       toast.error("Missing video, session, or patient data.");
       return;
@@ -218,8 +212,12 @@ export default function GaitAnalysisPage() {
     try {
       const formData = new FormData();
       formData.append("session_id", sessionId);
-      formData.append("gender", patientData.gender);
-      formData.append("video", videoToSubmit, "gait_video.mp4");
+      formData.append("gender", patientData.gender || "male");
+      formData.append(
+        "video",
+        videoToSubmit,
+        videoFile ? videoFile.name : "recorded_gait.webm",
+      );
 
       const res = await fetch("/api/analyze/gait", {
         method: "POST",
@@ -227,16 +225,48 @@ export default function GaitAnalysisPage() {
       });
 
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to analyze gait");
+        let message = "Failed to analyze gait";
+        try {
+          const errorData = await res.json();
+          message = errorData.error || message;
+        } catch {
+          const errorText = await res.text();
+          if (errorText) message = errorText;
+        }
+        throw new Error(message);
       }
 
-      const result = await res.json();
+      const result: GaitAnalysisResult = await res.json();
+      setGaitResult(result);
       sessionStorage.setItem("gaitResult", JSON.stringify(result));
+
+      const selectedVideo = videoFile ?? recordedBlob;
+      if (selectedVideo) {
+        const fileName = videoFile ? videoFile.name : "recorded-gait.webm";
+        const fileSize = formatFileSize(selectedVideo.size);
+        const existingHistory = sessionStorage.getItem("analysisHistory");
+        const parsedHistory: Array<Record<string, string | number>> = existingHistory
+          ? JSON.parse(existingHistory)
+          : [];
+
+        parsedHistory.push({
+          id: `${Date.now()}-gait`,
+          type: "gait",
+          source: videoFile ? "upload" : "webcam-recording",
+          fileName,
+          fileSize,
+          score: result.gait_score,
+          severity: getSeverityFromScore(result.gait_score),
+          submittedAt: new Date().toISOString(),
+        });
+
+        sessionStorage.setItem("analysisHistory", JSON.stringify(parsedHistory));
+      }
+
       toast.success("Gait analysis complete.");
 
       setCompletedSteps([...completedSteps, "gait"]);
-      router.push("/analysis/results");
+      setStep(4);
     } catch (err) {
       if (err instanceof Error) {
         toast.error(err.message);
@@ -246,8 +276,20 @@ export default function GaitAnalysisPage() {
     } finally {
       setIsSubmitting(false);
     }
-
   };
+
+  const gaitScore = gaitResult?.gait_score;
+  const gaitSeverity =
+    typeof gaitScore === "number" ? getSeverityFromScore(gaitScore) : "Pending";
+  const gaitSeverityDescription = getSeverityDescription(gaitSeverity);
+  const gaitScoreText = typeof gaitScore === "number" ? gaitScore.toFixed(1) : "N/A";
+  const gaitProgressWidth =
+    typeof gaitScore === "number"
+      ? `${Math.max(0, Math.min((gaitScore / 100) * 100, 100)).toFixed(2)}%`
+      : "0%";
+  const selectedVideo = videoFile ?? recordedBlob;
+  const selectedVideoName = videoFile ? videoFile.name : "recorded-gait.webm";
+  const selectedVideoSize = selectedVideo ? formatFileSize(selectedVideo.size) : "N/A";
 
   const getProgress = () => {
     return { current: completedSteps.length, total: 3 };
@@ -335,7 +377,7 @@ export default function GaitAnalysisPage() {
 
                   <div
                     className={cn(
-                      "rounded-xl border-2 border-dashed p-6 text-center transition-all duration-200 overflow-hidden flex flex-col justify-center min-h-[300px]",
+                      "rounded-xl border-2 border-dashed p-6 text-center transition-all duration-200 overflow-hidden flex flex-col justify-center min-h-75",
                       isRecording
                         ? "border-primary bg-black/40"
                         : recordedBlob
@@ -410,9 +452,18 @@ export default function GaitAnalysisPage() {
                       )}
                     </Button>
                     {recordedBlob && !isRecording && (
-                      <p className="text-xs text-green-500 mt-3 animate-bounce">
-                        ✓ Video recorded successfully
-                      </p>
+                      <div className="mt-3 space-y-1">
+                        <p className="text-xs text-green-500 animate-bounce">
+                          ✓ Video recorded successfully
+                        </p>
+                        <button
+                          type="button"
+                          onClick={clearRecordedVideo}
+                          className="text-xs text-red-500 hover:text-red-600"
+                        >
+                          Remove
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -487,23 +538,50 @@ export default function GaitAnalysisPage() {
           )}
 
           {step === 3 && (
-            <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-8">
-              <h3 className="text-xl font-semibold text-foreground dark:text-white mb-2">
-                Submit
-              </h3>
-              <p className="text-sm text-muted-foreground dark:text-gray-400 mb-6">
-                Confirm and analyze
-              </p>
-
-              <div className="bg-secondary dark:bg-[#0f1219] rounded-xl p-6 mb-6">
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-muted-foreground dark:text-gray-400">
-                    Video Status
-                  </span>
-                  <span className="font-medium text-primary">
-                    Ready for analysis
-                  </span>
+            <div className="space-y-6">
+              <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-10 text-center">
+                <div className="flex items-center justify-center gap-4 mb-4">
+                  <div className="w-18 h-18 rounded-full bg-primary/15 flex items-center justify-center">
+                    <Video className="w-10 h-10 text-primary" />
+                  </div>
+                  <h3 className="text-3xl md:text-4xl font-bold text-foreground dark:text-white">
+                    Ready for Gait Analysis
+                  </h3>
                 </div>
+                <p className="text-md text-muted-foreground dark:text-gray-300 max-w-3xl mx-auto">
+                  Your gait video will be analyzed to estimate walking stability, balance changes, and movement irregularities related to Parkinson&apos;s disease.
+                </p>
+              </div>
+
+              <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-6">
+                <h4 className="text-2xl font-semibold text-foreground dark:text-white mb-5">
+                  Submission Summary
+                </h4>
+                <div className="grid sm:grid-cols-2 gap-4 text-base">
+                  <p className="text-muted-foreground dark:text-gray-400">Patient:</p>
+                  <p className="text-foreground dark:text-white font-semibold">{patientData?.gender ? sessionStorage.getItem("patientData") && JSON.parse(sessionStorage.getItem("patientData") || "{}").fullName || "N/A" : "N/A"}</p>
+
+                  <p className="text-muted-foreground dark:text-gray-400">Gender:</p>
+                  <p className="text-foreground dark:text-white font-semibold capitalize">{patientData?.gender || "N/A"}</p>
+
+                  <p className="text-muted-foreground dark:text-gray-400">Video:</p>
+                  <p className="text-foreground dark:text-white font-semibold break-all">{selectedVideo ? `${selectedVideoName} (${selectedVideoSize})` : "N/A"}</p>
+
+                  <p className="text-muted-foreground dark:text-gray-400">Analysis Type:</p>
+                  <p className="text-foreground dark:text-white font-semibold">Gait stability screening</p>
+                </div>
+              </div>
+
+              <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-6">
+                <h4 className="text-2xl font-semibold text-foreground dark:text-white mb-4">
+                  About Gait Analysis
+                </h4>
+                <ul className="space-y-2 text-muted-foreground dark:text-gray-300 list-disc list-inside">
+                  <li>Gait scores range from 0 to 100.</li>
+                  <li>Lower scores indicate smoother, more stable walking patterns.</li>
+                  <li>The analysis focuses on step rhythm, balance, and movement symmetry.</li>
+                  <li>Results are intended for screening purposes only.</li>
+                </ul>
               </div>
 
               <div className="flex justify-between mt-8">
@@ -534,30 +612,149 @@ export default function GaitAnalysisPage() {
           )}
 
           {step === 4 && (
-            <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-8">
-              <h3 className="text-xl font-semibold text-foreground dark:text-white mb-2">
-                Results
-              </h3>
-              <p className="text-sm text-muted-foreground dark:text-gray-400 mb-6">
-                Gait analysis result summary
-              </p>
-
-              <div className="space-y-4">
-                <div className="bg-secondary dark:bg-[#0f1219] rounded-xl p-5">
-                  <p className="text-sm text-muted-foreground dark:text-gray-400">Gait Score</p>
-                  <p className="text-4xl font-bold text-primary">72.0</p>
-                  <p className="text-sm text-amber-500 font-medium">Mild irregularity</p>
+            <div className="space-y-6">
+              <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-8">
+                <div className="flex items-start justify-between gap-6">
+                  <div>
+                    <h3 className="text-2xl md:text-3xl font-bold text-foreground dark:text-white">
+                      Analysis Results
+                    </h3>
+                    <p className="text-sm text-muted-foreground dark:text-gray-400 mt-2">
+                      Detailed results of your gait analysis for Parkinson&apos;s disease screening.
+                    </p>
+                  </div>
+                  <Video className="w-6 h-6 text-amber-500 shrink-0" />
                 </div>
 
-                <div className="bg-secondary dark:bg-[#0f1219] rounded-xl p-5">
-                  <p className="text-sm text-muted-foreground dark:text-gray-400">Video Submitted</p>
-                  <p className="text-sm text-foreground dark:text-white break-all">
-                    {videoFile
-                      ? `${videoFile.name} (${formatFileSize(videoFile.size)})`
-                      : recordedBlob
-                        ? `recorded-gait.webm (${formatFileSize(recordedBlob.size)})`
-                        : "N/A"}
+                <div className="mt-6 rounded-xl border border-primary/40 dark:border-primary/30 border-l-4 p-5 bg-primary/5 dark:bg-primary/10">
+                  <h4 className="text-xl font-semibold text-primary mb-2">Analysis Complete</h4>
+                  <p className="text-sm text-foreground dark:text-white">
+                    Patient: <span className="font-semibold text-primary">{sessionStorage.getItem("patientData") ? JSON.parse(sessionStorage.getItem("patientData") || "{}").fullName || "N/A" : "N/A"}</span>
                   </p>
+                  <p className="text-lg font-semibold text-foreground dark:text-white mt-2">
+                    Gait Score: <span className="text-amber-500">{gaitScoreText}</span>
+                    <span className="text-muted-foreground"> / 100</span>
+                    <span className="ml-3 text-xs bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300 px-2.5 py-1 rounded-full align-middle">
+                      {gaitSeverity}
+                    </span>
+                  </p>
+                </div>
+
+                <div className="mt-6 bg-secondary dark:bg-[#0f1219] rounded-lg p-4 inline-block">
+                  <p className="text-sm text-muted-foreground dark:text-gray-400">Patient</p>
+                  <p className="font-semibold text-foreground dark:text-white">{sessionStorage.getItem("patientData") ? JSON.parse(sessionStorage.getItem("patientData") || "{}").fullName || "N/A" : "N/A"}</p>
+                  <p className="text-sm text-primary mt-1">Gait Score: {gaitScoreText}</p>
+                </div>
+
+                <div className="text-center mt-8">
+                  <p className="tracking-[0.2em] text-xs text-muted-foreground dark:text-gray-400">GAIT STABILITY SCORE</p>
+                  <p className="text-sm text-muted-foreground dark:text-gray-400 mb-2">
+                    for {sessionStorage.getItem("patientData") ? JSON.parse(sessionStorage.getItem("patientData") || "{}").fullName || "Patient" : "Patient"}
+                  </p>
+                  <p className="text-7xl font-bold text-amber-500 leading-none">
+                    {gaitScoreText}<span className="text-4xl text-muted-foreground">/100</span>
+                  </p>
+                  <p className="mt-3 text-3xl font-bold text-foreground dark:text-white uppercase">
+                    {gaitSeverity.toUpperCase()}
+                  </p>
+                  <p className="text-sm text-muted-foreground dark:text-gray-400 mt-2">
+                    {gaitSeverityDescription}
+                  </p>
+                </div>
+
+                <div className="mt-6">
+                  <div className="flex justify-between text-xs md:text-sm text-foreground dark:text-white mb-2">
+                    <span>Stable (0-20)</span>
+                    <span>Mild irregularity (21-40)</span>
+                    <span>Moderate irregularity (41-70)</span>
+                    <span>Severe (71+)</span>
+                  </div>
+                  <div className="h-3 rounded-full bg-secondary dark:bg-[#0f1219] overflow-hidden">
+                    <div className="h-full bg-primary" style={{ width: gaitProgressWidth }} />
+                  </div>
+                </div>
+
+                <div className="mt-6 bg-secondary dark:bg-[#0f1219] rounded-lg p-4">
+                  <p className="text-sm text-muted-foreground dark:text-gray-400">Severity Level:</p>
+                  <p className="text-xl font-semibold text-amber-500">{gaitSeverity}</p>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-6">
+                  <h4 className="text-2xl font-bold text-foreground dark:text-white mb-4">What is Gait Analysis?</h4>
+                  <p className="text-sm text-muted-foreground dark:text-gray-400 mb-4">
+                    Gait analysis measures walking rhythm, balance, stride consistency, and movement symmetry to help screen for motor changes associated with Parkinson&apos;s disease.
+                  </p>
+                  <ul className="space-y-2 text-sm text-foreground dark:text-white">
+                    <li><span className="font-semibold">0-20:</span> Stable - smooth walking pattern</li>
+                    <li><span className="font-semibold">21-40:</span> Mild irregularity - small changes in cadence or balance</li>
+                    <li><span className="font-semibold">41-70:</span> Moderate irregularity - clear movement changes</li>
+                    <li><span className="font-semibold">71+:</span> Severe - significant gait disturbance</li>
+                  </ul>
+                </div>
+
+                <div className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-6">
+                  <h4 className="text-2xl font-bold text-foreground dark:text-white mb-4">Your Result</h4>
+                  <div className="bg-secondary dark:bg-[#0f1219] rounded-lg p-6 text-center mb-4">
+                    <p className="text-5xl font-bold text-amber-500">{gaitScoreText}</p>
+                    <p className="text-2xl font-semibold text-foreground dark:text-white mt-2">{gaitSeverity}</p>
+                    <p className="text-sm text-muted-foreground dark:text-gray-400 mt-2">{gaitSeverityDescription}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground dark:text-gray-400">
+                    Important: This is a screening tool based on gait video only. Please consult a healthcare professional for proper diagnosis and treatment.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-6">
+                <h4 className="text-3xl font-bold text-foreground dark:text-white mb-1">Recommendations</h4>
+                <p className="text-sm text-muted-foreground dark:text-gray-400 mb-4">Based on your gait analysis results</p>
+                <div className="space-y-3">
+                  {[
+                    "Review walking stability with a neurologist or physiotherapist",
+                    "Practice balance and strength exercises if recommended",
+                    "Use supportive footwear and safe walking environments",
+                    "Track changes in walking speed, stride, or balance over time",
+                    "Discuss any falls or near-falls with a healthcare professional",
+                  ].map((item) => (
+                    <div key={item} className="flex items-center gap-3 rounded-lg bg-secondary dark:bg-[#0f1219] p-3">
+                      <CircleCheck className="w-4 h-4 text-primary shrink-0" />
+                      <p className="text-sm text-foreground dark:text-white">{item}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {gaitResult?.annotated_video_url && (
+                <div className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-6">
+                  <h4 className="text-2xl font-semibold text-foreground dark:text-white mb-4">Annotated Video</h4>
+                  <video
+                    controls
+                    src={gaitResult.annotated_video_url}
+                    className="w-full rounded-lg"
+                  />
+                </div>
+              )}
+
+              <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-6">
+                <h4 className="text-2xl font-semibold text-foreground dark:text-white mb-4">
+                  Submission Summary
+                </h4>
+                <div className="grid sm:grid-cols-2 gap-4 text-base">
+                  <p className="text-muted-foreground dark:text-gray-400">Patient:</p>
+                  <p className="text-foreground dark:text-white font-semibold">{sessionStorage.getItem("patientData") ? JSON.parse(sessionStorage.getItem("patientData") || "{}").fullName || "N/A" : "N/A"}</p>
+
+                  <p className="text-muted-foreground dark:text-gray-400">Gender:</p>
+                  <p className="text-foreground dark:text-white font-semibold capitalize">{patientData?.gender || "N/A"}</p>
+
+                  <p className="text-muted-foreground dark:text-gray-400">Video:</p>
+                  <p className="text-foreground dark:text-white font-semibold break-all">
+                    {selectedVideo ? `${selectedVideoName} (${selectedVideoSize})` : "N/A"}
+                  </p>
+
+                  <p className="text-muted-foreground dark:text-gray-400">Processed score:</p>
+                  <p className="text-foreground dark:text-white font-semibold">{gaitScoreText}</p>
                 </div>
               </div>
 
@@ -591,7 +788,7 @@ export default function GaitAnalysisPage() {
         ]}
         onViewCurrentResult={() => {
           setResultActionsOpen(false);
-          setStep(4);
+          router.push("/analysis/results");
         }}
         onViewDashboard={() => closeDialogAndNavigate("/analysis/dashboard")}
       />
