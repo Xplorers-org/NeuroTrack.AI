@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { Upload, Mic, MicOff } from "lucide-react";
+import { Upload, Mic, MicOff, CircleCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface VoiceAnalysisProps {
@@ -20,7 +20,25 @@ export function VoiceAnalysis({ onNext, onPrevious }: VoiceAnalysisProps) {
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const clearUploadedFile = () => {
+    setUploadedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const clearRecording = () => {
+    if (isRecording) {
+      stopRecording();
+    }
+    setRecordedBlob(null);
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isRecording || recordedBlob) {
+      return;
+    }
+
     const file = e.target.files?.[0];
     if (file) {
       setUploadedFile(file);
@@ -29,6 +47,10 @@ export function VoiceAnalysis({ onNext, onPrevious }: VoiceAnalysisProps) {
   };
 
   const startRecording = async () => {
+    if (uploadedFile) {
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
@@ -125,14 +147,25 @@ export function VoiceAnalysis({ onNext, onPrevious }: VoiceAnalysisProps) {
             />
             <Button
               onClick={() => fileInputRef.current?.click()}
+              disabled={isRecording || !!recordedBlob}
               className="bg-primary hover:bg-primary/90 px-6"
             >
               Choose File
             </Button>
             {uploadedFile && (
-              <p className="text-sm text-primary mt-4 truncate px-4">
-                {uploadedFile.name}
-              </p>
+              <div className="mt-4 flex flex-col items-center gap-2">
+                <p className="inline-flex items-center gap-2 text-sm text-emerald-500 truncate max-w-full px-2">
+                  <CircleCheck className="w-4 h-4 shrink-0" />
+                  <span className="truncate">{uploadedFile.name}</span>
+                </p>
+                <button
+                  type="button"
+                  onClick={clearUploadedFile}
+                  className="text-sm text-red-500 hover:text-red-600"
+                >
+                  Remove
+                </button>
+              </div>
             )}
           </div>
 
@@ -156,11 +189,14 @@ export function VoiceAnalysis({ onNext, onPrevious }: VoiceAnalysisProps) {
             </p>
             <Button
               onClick={isRecording ? stopRecording : startRecording}
+              disabled={!!uploadedFile}
               className={cn(
                 "px-6",
                 isRecording
                   ? "bg-destructive hover:bg-destructive/90"
-                  : "bg-primary hover:bg-primary/90"
+                  : uploadedFile
+                    ? "bg-muted dark:bg-white/10 text-muted-foreground dark:text-gray-500 cursor-not-allowed"
+                    : "bg-primary hover:bg-primary/90"
               )}
             >
               {isRecording ? (
@@ -176,7 +212,19 @@ export function VoiceAnalysis({ onNext, onPrevious }: VoiceAnalysisProps) {
               )}
             </Button>
             {recordedBlob && !isRecording && (
-              <p className="text-sm text-primary mt-4">Recording saved!</p>
+              <div className="mt-4 flex flex-col items-center gap-2">
+                <p className="inline-flex items-center gap-2 text-sm text-emerald-500">
+                  <CircleCheck className="w-4 h-4" />
+                  Recording saved
+                </p>
+                <button
+                  type="button"
+                  onClick={clearRecording}
+                  className="text-sm text-red-500 hover:text-red-600"
+                >
+                  Remove
+                </button>
+              </div>
             )}
           </div>
         </div>

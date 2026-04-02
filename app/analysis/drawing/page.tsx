@@ -2,10 +2,11 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { AnalysisSidebar } from "@/components/analysis/analysis-sidebar";
 import { StepIndicator } from "@/components/analysis/step-indicator";
 import { Button } from "@/components/ui/button";
-import { Upload } from "lucide-react";
+import { Upload, CircleCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const drawingSteps = [
@@ -24,6 +25,10 @@ export default function DrawingAnalysisPage() {
   const [completedSteps] = useState<string[]>(["patient-info", "voice", "gait"]);
 
   const handleSpiralFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (waveFile) {
+      return;
+    }
+
     const file = e.target.files?.[0];
     if (file) {
       setSpiralFile(file);
@@ -31,13 +36,34 @@ export default function DrawingAnalysisPage() {
   };
 
   const handleWaveFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (spiralFile) {
+      return;
+    }
+
     const file = e.target.files?.[0];
     if (file) {
       setWaveFile(file);
     }
   };
 
-  const hasUploads = Boolean(spiralFile && waveFile);
+  const removeSpiralFile = () => {
+    setSpiralFile(null);
+    if (spiralInputRef.current) {
+      spiralInputRef.current.value = "";
+    }
+  };
+
+  const removeWaveFile = () => {
+    setWaveFile(null);
+    if (waveInputRef.current) {
+      waveInputRef.current.value = "";
+    }
+  };
+
+  const previewFile = spiralFile ?? waveFile;
+  const previewLabel = spiralFile ? "Spiral Drawing" : waveFile ? "Wave Drawing" : "Drawing Preview";
+
+  const hasUploads = Boolean(spiralFile || waveFile);
 
   const getProgress = () => {
     return { current: completedSteps.length, total: 3 };
@@ -58,7 +84,7 @@ export default function DrawingAnalysisPage() {
               Drawing Analysis
             </h1>
             <p className="text-muted-foreground dark:text-gray-400 mt-2">
-              Upload spiral and wave drawings for fine motor control assessment.
+              Upload spiral or wave drawings for fine motor control assessment.
             </p>
           </div>
 
@@ -68,10 +94,10 @@ export default function DrawingAnalysisPage() {
             <div className="w-full">
               <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-8">
                 <h3 className="text-xl font-semibold text-foreground dark:text-white mb-1">
-                  Upload Files
+                  Upload a File
                 </h3>
                 <p className="text-sm text-muted-foreground dark:text-gray-400 mb-8">
-                  Spiral and wave drawings
+                  Spiral or Wave drawing for analysis
                 </p>
 
                 <div className="grid md:grid-cols-2 gap-6">
@@ -87,7 +113,7 @@ export default function DrawingAnalysisPage() {
                       <Upload className="w-7 h-7 text-muted-foreground dark:text-gray-400" />
                     </div>
                     <h4 className="text-lg font-medium text-foreground dark:text-white mb-2">
-                      Upload Spiral
+                      Upload Spiral Drawing
                     </h4>
                     <p className="text-sm text-muted-foreground dark:text-gray-400 mb-5">
                       Support: PNG, JPG, JPEG
@@ -101,14 +127,25 @@ export default function DrawingAnalysisPage() {
                     />
                     <Button
                       onClick={() => spiralInputRef.current?.click()}
-                      className="bg-primary hover:bg-primary/90 px-6"
+                      disabled={!!spiralFile || !!waveFile}
+                      className="bg-primary hover:bg-primary/90 px-6 disabled:cursor-not-allowed disabled:bg-muted dark:disabled:bg-white/10 disabled:text-muted-foreground dark:disabled:text-gray-500"
                     >
-                      Choose Spiral File
+                      Choose File
                     </Button>
                     {spiralFile && (
-                      <p className="text-sm text-primary mt-4 truncate px-4">
-                        {spiralFile.name}
-                      </p>
+                      <div className="mt-4 flex flex-col items-center gap-2">
+                        <p className="inline-flex items-center gap-2 text-sm text-emerald-500 truncate max-w-full px-2">
+                          <CircleCheck className="w-4 h-4 shrink-0" />
+                          <span className="truncate">{spiralFile.name}</span>
+                        </p>
+                        <button
+                          type="button"
+                          onClick={removeSpiralFile}
+                          className="text-sm text-red-500 hover:text-red-600"
+                        >
+                          Remove
+                        </button>
+                      </div>
                     )}
                   </div>
 
@@ -124,7 +161,7 @@ export default function DrawingAnalysisPage() {
                       <Upload className="w-7 h-7 text-muted-foreground dark:text-gray-400" />
                     </div>
                     <h4 className="text-lg font-medium text-foreground dark:text-white mb-2">
-                      Upload Wave
+                      Upload Wave Drawing
                     </h4>
                     <p className="text-sm text-muted-foreground dark:text-gray-400 mb-5">
                       Support: PNG, JPG, JPEG
@@ -138,14 +175,25 @@ export default function DrawingAnalysisPage() {
                     />
                     <Button
                       onClick={() => waveInputRef.current?.click()}
-                      className="bg-primary hover:bg-primary/90 px-6"
+                      disabled={!!waveFile || !!spiralFile}
+                      className="bg-primary hover:bg-primary/90 px-6 disabled:cursor-not-allowed disabled:bg-muted dark:disabled:bg-white/10 disabled:text-muted-foreground dark:disabled:text-gray-500"
                     >
-                      Choose Wave File
+                      Choose File
                     </Button>
                     {waveFile && (
-                      <p className="text-sm text-primary mt-4 truncate px-4">
-                        {waveFile.name}
-                      </p>
+                      <div className="mt-4 flex flex-col items-center gap-2">
+                        <p className="inline-flex items-center gap-2 text-sm text-emerald-500 truncate max-w-full px-2">
+                          <CircleCheck className="w-4 h-4 shrink-0" />
+                          <span className="truncate">{waveFile.name}</span>
+                        </p>
+                        <button
+                          type="button"
+                          onClick={removeWaveFile}
+                          className="text-sm text-red-500 hover:text-red-600"
+                        >
+                          Remove
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -153,7 +201,7 @@ export default function DrawingAnalysisPage() {
 
               <div className="mt-6 bg-amber-500/10 dark:bg-amber-900/20 border border-amber-500/30 dark:border-amber-500/20 rounded-xl px-5 py-4">
                 <p className="text-sm text-amber-700 dark:text-amber-400">
-                  <span className="font-semibold">Note:</span> Upload one spiral and one wave drawing for best analysis results.
+                  <span className="font-semibold">Note:</span> Upload one drawing only spiral or wave. Remove the current file before choosing another one.
                 </p>
               </div>
 
@@ -187,35 +235,32 @@ export default function DrawingAnalysisPage() {
                 Preview
               </h3>
               <p className="text-sm text-muted-foreground dark:text-gray-400 mb-6">
-                Review your drawing
+                Review the selected drawing
               </p>
 
-              <div className="grid gap-6 md:grid-cols-2">
-                <div className="bg-secondary dark:bg-[#0f1219] rounded-xl p-4">
-                  <p className="mb-3 text-sm font-medium text-foreground dark:text-white">Spiral Drawing</p>
-                  {spiralFile ? (
-                    <img
-                      src={URL.createObjectURL(spiralFile)}
-                      alt="Uploaded spiral drawing"
-                      className="max-w-full max-h-80 rounded-lg mx-auto"
+              <div className="bg-secondary dark:bg-[#0f1219] rounded-xl p-4">
+                <p className="mb-3 text-sm font-medium text-foreground dark:text-white">{previewLabel}</p>
+                {previewFile ? (
+                  <div className="space-y-4">
+                    <Image
+                      src={URL.createObjectURL(previewFile)}
+                      alt={`Uploaded ${previewLabel.toLowerCase()}`}
+                      width={600}
+                      height={600}
+                      unoptimized
+                      className="max-w-full h-auto rounded-lg mx-auto"
                     />
-                  ) : (
-                    <p className="text-sm text-muted-foreground dark:text-gray-400">No spiral file uploaded</p>
-                  )}
-                </div>
-
-                <div className="bg-secondary dark:bg-[#0f1219] rounded-xl p-4">
-                  <p className="mb-3 text-sm font-medium text-foreground dark:text-white">Wave Drawing</p>
-                  {waveFile ? (
-                    <img
-                      src={URL.createObjectURL(waveFile)}
-                      alt="Uploaded wave drawing"
-                      className="max-w-full max-h-80 rounded-lg mx-auto"
-                    />
-                  ) : (
-                    <p className="text-sm text-muted-foreground dark:text-gray-400">No wave file uploaded</p>
-                  )}
-                </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <p className="inline-flex items-center gap-2 text-sm text-emerald-500 truncate max-w-full px-2">
+                        <CircleCheck className="w-4 h-4 shrink-0" />
+                        <span className="truncate">{previewFile.name}</span>
+                      </p>
+                    
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground dark:text-gray-400">No drawing uploaded</p>
+                )}
               </div>
 
               <div className="flex justify-between mt-8">
