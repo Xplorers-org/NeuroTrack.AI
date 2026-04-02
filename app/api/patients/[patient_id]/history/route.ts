@@ -19,9 +19,9 @@ const formatDbError = (err: unknown) => {
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { patient_id: string } }
+  { params }: { params: Promise<{ patient_id: string }> }
 ) {
-  const { patient_id } = params;
+  const { patient_id } = await params;
 
   try {
     const sessions = await getPatientHistory(patient_id);
@@ -31,6 +31,7 @@ export async function GET(
     return NextResponse.json(sessions);
   } catch (err: unknown) {
     const message = formatDbError(err);
+    console.error(`[history] Error fetching history for ${patient_id}:`, err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

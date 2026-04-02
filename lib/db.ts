@@ -158,10 +158,16 @@ export async function getPatientByPid(patient_id: string) {
   const { data, error } = await supabase
     .from("patients")
     .select("*")
-    .eq("patient_id", patient_id)
-    .maybeSingle();
+    .eq("patient_id", patient_id)  // Exact match only
+    .single();  // Expect exactly one row
+  
+  if (error && error.code === 'PGRST116') {
+    // PGRST116 = no rows found, return null instead of error
+    return null;
+  }
+  
   if (error) throw error;
-  return data;  // null if not found
+  return data;
 }
 
 // ── Sessions ──────────────────────────────────────────────────────────────────
@@ -189,24 +195,56 @@ export async function completeSession(session_id: string) {
   if (error) throw error;
 }
 
-export async function getPatientHistory(_patient_id: string) {
-  void _patient_id;
+export async function getPatientHistory(patient_id: string) {
+  // First, resolve patient_id (string like "p001") to patient UUID
+  console.log(`[getPatientHistory] Fetching history for patient_id='${patient_id}'`);
 
+  const patient = await getPatientByPid(patient_id);
+  if (!patient) {
+    console.log(`[getPatientHistory] Patient not found: ${patient_id}`);
+    return [];
+  }
+
+  console.log(`[getPatientHistory] Resolved patient_id '${patient_id}' to UUID '${patient.id}'`);
+
+  // Get all test_sessions for this patient using the PATIENT UUID
+  const { data: sessions, error: sessionError } = await supabase
+    .from("test_sessions")
+    .select("id")
+    .eq("patient_id", patient.id);  // Match by patient UUID
+
+  if (sessionError) {
+    console.error(`[getPatientHistory] Session query error for ${patient_id} (UUID ${patient.id}):`, sessionError);
+    throw sessionError;
+  }
+
+  console.log(`[getPatientHistory] Found ${sessions?.length ?? 0} sessions for patient ${patient_id}`);
+
+  // If no sessions exist, return empty
+  if (!sessions || sessions.length === 0) {
+    return [];
+  }
+
+  const sessionIds = sessions.map((s) => (s as DbRow).id as string);
+  console.log(`[getPatientHistory] Session IDs for ${patient_id}:`, sessionIds);
+
+  // Query results filtered by this patient's session IDs ONLY
   const [voiceResult, gaitResult, drawingResult] = await Promise.all([
-    supabase.from("voice_results").select("*"),
-    supabase.from("gait_results").select("*"),
-    supabase.from("drawing_results").select("*"),
+    supabase.from("voice_results").select("*").in("session_id", sessionIds),
+    supabase.from("gait_results").select("*").in("session_id", sessionIds),
+    supabase.from("drawing_results").select("*").in("session_id", sessionIds),
   ]);
 
   if (voiceResult.error) throw voiceResult.error;
   if (gaitResult.error) throw gaitResult.error;
   if (drawingResult.error) throw drawingResult.error;
 
+  console.log(`[getPatientHistory] Results: voice=${voiceResult.data?.length ?? 0}, gait=${gaitResult.data?.length ?? 0}, drawing=${drawingResult.data?.length ?? 0}`);
+
   const items: HistoryItem[] = [];
 
   const appendRows = (rows: DbRow[] | null, type: HistoryItem["type"]) => {
     if (!Array.isArray(rows)) return;
-
     for (const row of rows) {
       const item = toHistoryItem(
         {
@@ -215,10 +253,7 @@ export async function getPatientHistory(_patient_id: string) {
         },
         type,
       );
-
-      if (item) {
-        items.push(item);
-      }
+      if (item) items.push(item);
     }
   };
 

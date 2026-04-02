@@ -74,6 +74,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Validate session_id is a valid UUID
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(session_id)) {
+    return NextResponse.json(
+      { error: "Invalid session_id format." },
+      { status: 400 }
+    );
+  }
+
   // ── 1. Forward image to MIS API ───────────────────────────────────────────
   const upstream = new FormData();
   upstream.append("file", file);

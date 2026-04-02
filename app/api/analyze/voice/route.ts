@@ -26,6 +26,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Validate session_id is a valid UUID
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(session_id)) {
+    return NextResponse.json(
+      { error: "Invalid session_id format." },
+      { status: 400 }
+    );
+  }
+
   // ── 1. Resolve patient UUID and auto-calculate test_count ─────────────────
   // test_count = how many voice tests this patient has had before + 1.
   // This is passed as 'test_time' to the Voice API.
@@ -77,6 +85,7 @@ export async function POST(req: NextRequest) {
   // ── 3. Save to Supabase ────────────────────────────────────────────────────
   let saved = false;
   try {
+    console.log("[voice] Saving result with session_id:", session_id);
     await saveVoiceResult(session_id, {
       age:               parseInt(age),
       sex,
@@ -85,6 +94,7 @@ export async function POST(req: NextRequest) {
       processing_time_ms,
     });
     saved = true;
+    console.log("[voice] Result saved successfully");
   } catch (err) {
     console.error("[voice] Supabase save failed:", err);
   }

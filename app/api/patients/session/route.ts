@@ -26,14 +26,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "patient_id and test_time are required." }, { status: 400 });
     }
 
+    console.log("[session] Finding patient:", patient_id);
     const patient = await getPatientByPid(patient_id);
     if (!patient) {
+      console.log("[session] Patient not found:", patient_id);
       return NextResponse.json({ error: `Patient '${patient_id}' not found.` }, { status: 404 });
     }
 
+    console.log("[session] Creating session for patient:", patient.id);
     const session = await createSession(patient.id, test_time);
+    console.log("[session] Session created:", session.id);
+    
     return NextResponse.json({ patient, session_id: session.id });
   } catch (err: unknown) {
+    console.error("[session] Error:", err);
     return NextResponse.json({ error: formatDbError(err) }, { status: 500 });
   }
 }
