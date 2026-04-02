@@ -6,6 +6,7 @@ import { AnalysisSidebar } from "@/components/analysis/analysis-sidebar";
 import { StepIndicator } from "@/components/analysis/step-indicator";
 import { Button } from "@/components/ui/button";
 import { Upload, Video, VideoOff, Loader2 } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -118,7 +119,12 @@ export default function GaitAnalysisPage() {
     }
   };
 
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isRecording || recordedBlob) {
+      return;
+    }
+
     const file = e.target.files?.[0];
     if (file) {
       setVideoFile(file);
@@ -126,7 +132,97 @@ export default function GaitAnalysisPage() {
     }
   };
 
+  const clearUploadedVideo = () => {
+    setVideoFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const clearRecordedVideo = () => {
+    if (isRecording) {
+      stopRecording();
+    }
+    setRecordedBlob(null);
+  };
+
+  const stopWebcam = () => {
+    setWebcamStream((currentStream) => {
+      currentStream?.getTracks().forEach((track) => track.stop());
+      return null;
+    });
+  };
+
+  const startRecording = async () => {
+    if (videoFile || recordedBlob || isRecording) {
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      setWebcamStream(stream);
+
+      if (webcamVideoRef.current) {
+        webcamVideoRef.current.srcObject = stream;
+      }
+
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: "video/webm" });
+        setRecordedBlob(blob);
+        setVideoFile(null);
+        stopWebcam();
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+
+      timerRef.current = setTimeout(() => {
+        stopRecording();
+      }, 30000);
+    } catch (error) {
+      console.error("Error accessing webcam:", error);
+      stopWebcam();
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (webcamVideoRef.current && webcamStream) {
+      webcamVideoRef.current.srcObject = webcamStream;
+    }
+  }, [webcamStream]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+      stopWebcam();
+    };
+  }, []);
+
   const hasVideo = videoFile || recordedBlob;
+  const previewVideo = videoFile ?? recordedBlob;
+  const showRecordingPreview = isRecording || !!recordedBlob;
 
   const submitAnalysis = async () => {
     let videoToSubmit = (videoFile || recordedBlob) as any;
@@ -236,14 +332,25 @@ export default function GaitAnalysisPage() {
                     />
                     <Button
                       onClick={() => fileInputRef.current?.click()}
-                      className="bg-primary hover:bg-primary/90 px-6"
+                      disabled={isRecording || !!recordedBlob}
+                      className="bg-primary hover:bg-primary/90 px-6 disabled:cursor-not-allowed disabled:bg-muted dark:disabled:bg-white/10 disabled:text-muted-foreground dark:disabled:text-gray-500"
                     >
                       Choose File
                     </Button>
                     {videoFile && (
-                      <p className="text-sm text-primary mt-4 truncate px-4">
-                        {videoFile.name}
-                      </p>
+                      <div className="mt-4 flex flex-col items-center gap-2">
+                        <p className="inline-flex items-center gap-2 text-sm text-emerald-500 truncate max-w-full px-2">
+                          <CircleCheck className="w-4 h-4 shrink-0" />
+                          <span className="truncate">{videoFile.name}</span>
+                        </p>
+                        <button
+                          type="button"
+                          onClick={clearUploadedVideo}
+                          className="text-sm text-red-500 hover:text-red-600"
+                        >
+                          Remove
+                        </button>
+                      </div>
                     )}
                   </div>
 
@@ -280,6 +387,7 @@ export default function GaitAnalysisPage() {
                     <h4 className="text-lg font-medium text-foreground dark:text-white mb-2">
                       {isRecording ? "Capturing Gait..." : recordedBlob ? "Video Captured" : "Record Video"}
                     </h4>
+
                     {!isRecording && (
                       <p className="text-sm text-muted-foreground dark:text-gray-400 mb-5">
                         {recordedBlob ? "You can review it or record again" : "Record walking video"}
@@ -289,6 +397,7 @@ export default function GaitAnalysisPage() {
                       onClick={isRecording ? stopRecording : startRecording}
                       className={cn(
                         "px-6 mt-auto self-center",
+
                         isRecording
                           ? "bg-destructive hover:bg-destructive/90 transition-all duration-300 scale-105"
                           : "bg-primary hover:bg-primary/90"
@@ -359,6 +468,7 @@ export default function GaitAnalysisPage() {
                     src={videoUrl}
                     className="w-full rounded-lg"
                   />
+
                 </div>
               )}
 
