@@ -10,17 +10,47 @@ import { PatientData } from "@/components/analysis/patient-info-form";
 export default function ResultsPage() {
   const router = useRouter();
   const [patientData, setPatientData] = useState<PatientData | null>(null);
+  const [voiceResult, setVoiceResult] = useState<any>(null);
+  const [gaitResult, setGaitResult] = useState<any>(null);
+  const [drawingResult, setDrawingResult] = useState<any>(null);
+  
   const completedSteps = ["patient-info", "voice", "gait", "drawing"];
 
   useEffect(() => {
     const storedData = sessionStorage.getItem("patientData");
-    if (storedData) {
-      setPatientData(JSON.parse(storedData));
-    }
+    if (storedData) setPatientData(JSON.parse(storedData));
+
+    const vResult = sessionStorage.getItem("voiceResult");
+    if (vResult) setVoiceResult(JSON.parse(vResult));
+
+    const gResult = sessionStorage.getItem("gaitResult");
+    if (gResult) setGaitResult(JSON.parse(gResult));
+
+    const dResult = sessionStorage.getItem("drawingResult");
+    if (dResult) setDrawingResult(JSON.parse(dResult));
   }, []);
 
   const getProgress = () => {
-    return { current: 3, total: 3 };
+    return { current: 4, total: 4 }; // Results should be 4 out of 4 or 3 out of 3? Wait, completedSteps is 4 items.
+  };
+
+  // Safe formatting functions
+  const formatVoiceScore = () => {
+    if (!voiceResult) return "N/A";
+    return Number(voiceResult.prediction)?.toFixed(2) || "N/A";
+  };
+
+  const formatGaitScore = () => {
+    if (!gaitResult) return "N/A";
+    return Number(gaitResult.gait_score)?.toFixed(2) || "N/A";
+  };
+
+  const formatDrawingScore = () => {
+    if (!drawingResult) return "N/A";
+    // Average spiral and wave probability (0-1) to percentage
+    const spiral = Number(drawingResult.spiral?.sigmoid_probability || 0);
+    const wave = Number(drawingResult.wave?.sigmoid_probability || 0);
+    return (((spiral + wave) / 2) * 100).toFixed(1) + "%";
   };
 
   return (
@@ -57,10 +87,10 @@ export default function ResultsPage() {
 
           {/* Overall Score */}
           <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-8 mb-6 text-center">
-            <p className="text-muted-foreground dark:text-gray-400 mb-2">Overall Assessment Score</p>
-            <div className="text-6xl font-bold text-primary mb-2">78</div>
+            <p className="text-muted-foreground dark:text-gray-400 mb-2">Overall Assessment Status</p>
+            <div className="text-4xl font-bold text-primary mb-2">Analysis Complete</div>
             <p className="text-sm text-muted-foreground dark:text-gray-400">
-              Low risk indicators detected
+              Review individual component scores below
             </p>
           </div>
 
@@ -68,40 +98,31 @@ export default function ResultsPage() {
           <div className="space-y-4 mb-8">
             <div className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-foreground dark:text-white">Voice Analysis</h3>
-                <span className="text-2xl font-bold text-green-500">85</span>
-              </div>
-              <div className="h-2 bg-secondary dark:bg-white/10 rounded-full overflow-hidden">
-                <div className="h-full bg-green-500 rounded-full" style={{ width: "85%" }} />
+                <h3 className="font-semibold text-foreground dark:text-white">Voice Analysis (UPDRS)</h3>
+                <span className="text-2xl font-bold text-green-500">{formatVoiceScore()}</span>
               </div>
               <p className="text-sm text-muted-foreground dark:text-gray-400 mt-3">
-                Voice patterns show normal tremor levels and speech clarity.
+                Predicted UPDRS score based on voice features.
               </p>
             </div>
 
             <div className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-foreground dark:text-white">Gait Analysis</h3>
-                <span className="text-2xl font-bold text-yellow-500">72</span>
-              </div>
-              <div className="h-2 bg-secondary dark:bg-white/10 rounded-full overflow-hidden">
-                <div className="h-full bg-yellow-500 rounded-full" style={{ width: "72%" }} />
+                <span className="text-2xl font-bold text-yellow-500">{formatGaitScore()}</span>
               </div>
               <p className="text-sm text-muted-foreground dark:text-gray-400 mt-3">
-                Minor gait irregularities detected. Recommend follow-up assessment.
+                Severity score based on pose estimation variance.
               </p>
             </div>
 
             <div className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-foreground dark:text-white">Drawing Analysis</h3>
-                <span className="text-2xl font-bold text-green-500">82</span>
-              </div>
-              <div className="h-2 bg-secondary dark:bg-white/10 rounded-full overflow-hidden">
-                <div className="h-full bg-green-500 rounded-full" style={{ width: "82%" }} />
+                <span className="text-2xl font-bold text-red-500">{formatDrawingScore()}</span>
               </div>
               <p className="text-sm text-muted-foreground dark:text-gray-400 mt-3">
-                Fine motor control within normal parameters.
+                Parkinson's probability based on micro-tremors in spiral and wave drawings.
               </p>
             </div>
           </div>
@@ -133,10 +154,10 @@ export default function ResultsPage() {
           <div className="flex gap-4">
             <Button
               variant="outline"
-              onClick={() => router.push("/analysis/dashboard")}
+              onClick={() => router.push("/analysis")}
               className="border-border dark:border-white/10"
             >
-              Back to Dashboard
+              Start New Analysis
             </Button>
             <Button
               onClick={() => {
@@ -145,7 +166,7 @@ export default function ResultsPage() {
               }}
               className="bg-primary hover:bg-primary/90"
             >
-              Start New Analysis
+              Finish & Return Home
             </Button>
           </div>
         </div>

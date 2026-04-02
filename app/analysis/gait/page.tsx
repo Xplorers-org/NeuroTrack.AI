@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AnalysisSidebar } from "@/components/analysis/analysis-sidebar";
 import { StepIndicator } from "@/components/analysis/step-indicator";
 import { Button } from "@/components/ui/button";
-import { Upload, Video, VideoOff } from "lucide-react";
+import { Upload, Video, VideoOff, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const gaitSteps = [
   { id: 1, title: "Upload/Record", subtitle: "Gait video" },
@@ -21,7 +22,15 @@ export default function GaitAnalysisPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [completedSteps] = useState<string[]>(["patient-info", "voice"]);
+  const [completedSteps, setCompletedSteps] = useState<string[]>(["patient-info", "voice"]);
+  
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const storedSession = sessionStorage.getItem("sessionId");
+    if (storedSession) setSessionId(storedSession);
+  }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -32,6 +41,46 @@ export default function GaitAnalysisPage() {
   };
 
   const hasVideo = videoFile || recordedBlob;
+
+  const submitAnalysis = async () => {
+    const videoToSubmit = videoFile || recordedBlob;
+    if (!videoToSubmit || !sessionId) {
+      toast.error("Missing video or session data.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append("session_id", sessionId);
+      formData.append("video", videoToSubmit, "gait_video.mp4");
+
+      const res = await fetch("/api/analyze/gait", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to analyze gait");
+      }
+
+      const result = await res.json();
+      sessionStorage.setItem("gaitResult", JSON.stringify(result));
+      toast.success("Gait analysis complete.");
+      
+      setCompletedSteps([...completedSteps, "gait"]);
+      router.push("/analysis/drawing");
+    } catch (err) {
+      if (err instanceof Error) {
+        toast.error(err.message);
+      } else {
+        toast.error("An unexpected error occurred");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const getProgress = () => {
     return { current: completedSteps.length, total: 3 };
@@ -235,15 +284,24 @@ export default function GaitAnalysisPage() {
                 <Button
                   variant="secondary"
                   onClick={() => setStep(2)}
+                  disabled={isSubmitting}
                   className="bg-secondary dark:bg-[#1a1f2e] hover:bg-secondary/80 dark:hover:bg-[#252b3b] border-0 text-foreground dark:text-white px-6"
                 >
                   Back
                 </Button>
                 <Button
-                  onClick={() => router.push("/analysis/drawing")}
-                  className="bg-primary hover:bg-primary/90 px-8"
+                  onClick={submitAnalysis}
+                  disabled={isSubmitting}
+                  className="bg-primary hover:bg-primary/90 px-8 disabled:opacity-50"
                 >
-                  Submit for Analysis
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    "Submit for Analysis"
+                  )}
                 </Button>
               </div>
             </div>

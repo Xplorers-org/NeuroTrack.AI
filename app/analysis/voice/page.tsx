@@ -7,6 +7,8 @@ import { StepIndicator } from "@/components/analysis/step-indicator";
 import { VoiceAnalysis } from "@/components/analysis/voice-analysis";
 import { PatientData } from "@/components/analysis/patient-info-form";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 const voiceSteps = [
   { id: 1, title: "Upload/Record", subtitle: "Voice sample" },
@@ -18,15 +20,18 @@ export default function VoiceAnalysisPage() {
   const router = useRouter();
   const [voiceStep, setVoiceStep] = useState(1);
   const [patientData, setPatientData] = useState<PatientData | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [audioData, setAudioData] = useState<File | Blob | null>(null);
   const [completedSteps, setCompletedSteps] = useState<string[]>(["patient-info"]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     // Get patient data from sessionStorage
     const storedData = sessionStorage.getItem("patientData");
-    if (storedData) {
-      setPatientData(JSON.parse(storedData));
-    }
+    if (storedData) setPatientData(JSON.parse(storedData));
+    
+    const storedSession = sessionStorage.getItem("sessionId");
+    if (storedSession) setSessionId(storedSession);
   }, []);
 
   const handleVoiceNext = (file: File | Blob) => {
@@ -39,6 +44,49 @@ export default function VoiceAnalysisPage() {
       setVoiceStep(voiceStep - 1);
     } else {
       router.push("/analysis");
+    }
+  };
+
+  const submitAnalysis = async () => {
+    if (!audioData || !patientData || !sessionId) {
+      toast.error("Missing required data for analysis.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append("session_id", sessionId);
+      formData.append("patient_id", patientData.patientId);
+      formData.append("age", patientData.age);
+      formData.append("sex", patientData.gender);
+      
+      formData.append("audio_file", audioData, "voice_sample.webm");
+
+      const res = await fetch("/api/analyze/voice", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to analyze voice");
+      }
+
+      const result = await res.json();
+      sessionStorage.setItem("voiceResult", JSON.stringify(result));
+      toast.success("Voice analysis complete.");
+      
+      setCompletedSteps([...completedSteps, "voice"]);
+      router.push("/analysis/gait");
+    } catch (err) {
+      if (err instanceof Error) {
+        toast.error(err.message);
+      } else {
+        toast.error("An unexpected error occurred");
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -160,18 +208,24 @@ export default function VoiceAnalysisPage() {
                 <Button
                   variant="secondary"
                   onClick={() => setVoiceStep(2)}
+                  disabled={isSubmitting}
                   className="bg-secondary dark:bg-[#1a1f2e] hover:bg-secondary/80 dark:hover:bg-[#252b3b] border-0 text-foreground dark:text-white px-6"
                 >
                   Back
                 </Button>
                 <Button
-                  onClick={() => {
-                    setCompletedSteps([...completedSteps, "voice"]);
-                    router.push("/analysis/gait");
-                  }}
-                  className="bg-primary hover:bg-primary/90 px-8"
+                  onClick={submitAnalysis}
+                  disabled={isSubmitting}
+                  className="bg-primary hover:bg-primary/90 px-8 disabled:opacity-50"
                 >
-                  Submit for Analysis
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    "Submit for Analysis"
+                  )}
                 </Button>
               </div>
             </div>
