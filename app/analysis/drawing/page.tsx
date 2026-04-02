@@ -22,7 +22,7 @@ export default function DrawingAnalysisPage() {
   const [waveFile, setWaveFile] = useState<File | null>(null);
   const spiralInputRef = useRef<HTMLInputElement>(null);
   const waveInputRef = useRef<HTMLInputElement>(null);
-  const [completedSteps, setCompletedSteps] = useState<string[]>(["patient-info", "voice", "gait"]);
+  const [completedSteps, setCompletedSteps] = useState<string[]>(["patient-info", "voice"]);
 
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -101,7 +101,7 @@ export default function DrawingAnalysisPage() {
       toast.success("Drawing analysis complete.");
       
       setCompletedSteps([...completedSteps, "drawing"]);
-      router.push("/analysis/results");
+      router.push("/analysis/gait");
     } catch (err) {
       if (err instanceof Error) {
         toast.error(err.message);
@@ -230,7 +230,7 @@ export default function DrawingAnalysisPage() {
               <div className="flex items-center justify-between mt-8">
                 <Button
                   variant="secondary"
-                  onClick={() => router.push("/analysis/gait")}
+                  onClick={() => router.push("/analysis/voice")}
                   className="bg-secondary dark:bg-[#1a1f2e] hover:bg-secondary/80 dark:hover:bg-[#252b3b] border-0 text-foreground dark:text-white px-6"
                 >
                   Previous

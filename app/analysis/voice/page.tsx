@@ -78,7 +78,7 @@ export default function VoiceAnalysisPage() {
       toast.success("Voice analysis complete.");
       
       setCompletedSteps([...completedSteps, "voice"]);
-      router.push("/analysis/gait");
+      router.push("/analysis/drawing");
     } catch (err) {
       if (err instanceof Error) {
         toast.error(err.message);

@@ -22,7 +22,7 @@ export default function GaitAnalysisPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [completedSteps, setCompletedSteps] = useState<string[]>(["patient-info", "voice"]);
+  const [completedSteps, setCompletedSteps] = useState<string[]>(["patient-info", "voice", "drawing"]);
   
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [patientData, setPatientData] = useState<any>(null);
@@ -75,7 +75,7 @@ export default function GaitAnalysisPage() {
       toast.success("Gait analysis complete.");
       
       setCompletedSteps([...completedSteps, "gait"]);
-      router.push("/analysis/drawing");
+      router.push("/analysis/results");
     } catch (err) {
       if (err instanceof Error) {
         toast.error(err.message);
@@ -211,7 +211,7 @@ export default function GaitAnalysisPage() {
               <div className="flex items-center justify-between mt-8">
                 <Button
                   variant="secondary"
-                  onClick={() => router.push("/analysis/voice")}
+                  onClick={() => router.push("/analysis/drawing")}
                   className="bg-secondary dark:bg-[#1a1f2e] hover:bg-secondary/80 dark:hover:bg-[#252b3b] border-0 text-foreground dark:text-white px-6"
                 >
                   Previous

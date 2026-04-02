@@ -14,7 +14,7 @@ export default function ResultsPage() {
   const [gaitResult, setGaitResult] = useState<any>(null);
   const [drawingResult, setDrawingResult] = useState<any>(null);
   
-  const completedSteps = ["patient-info", "voice", "gait", "drawing"];
+  const completedSteps = ["patient-info", "voice", "drawing", "gait"];
 
   useEffect(() => {
     const storedData = sessionStorage.getItem("patientData");
@@ -120,6 +120,9 @@ export default function ResultsPage() {
                   <h4 className="text-sm font-medium text-foreground dark:text-white mb-2">Pose Estimation (Annotated)</h4>
                   <video
                     controls
+                    playsInline
+                    preload="metadata"
+                    crossOrigin="anonymous"
                     src={gaitResult.annotated_video_url}
                     className="w-full max-w-md rounded-lg overflow-hidden border border-border dark:border-white/10 shadow-sm"
                   />

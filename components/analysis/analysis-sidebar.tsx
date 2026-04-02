@@ -52,7 +52,6 @@ export function AnalysisSidebar({
       href: "/analysis/voice",
       completed: completedSteps.includes("voice"),
     },
-
     {
       id: "drawing",
       label: "Drawing Analysis",
