@@ -83,7 +83,7 @@ export function AnalysisSidebar({
         </div>
         <div className="flex items-baseline gap-1">
           <span className="text-xl font-semibold text-sidebar-foreground">
-            PARKINSON
+            NeuroTrack
           </span>
           <span className="text-xl font-bold text-cyan-500">AI</span>
         </div>
