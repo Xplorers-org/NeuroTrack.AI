@@ -12,6 +12,7 @@ import {
   SquarePen,
   LayoutDashboard,
   FileText,
+  CheckCircle2,
 } from "lucide-react";
 
 interface NavItem {
@@ -19,6 +20,7 @@ interface NavItem {
   label: string;
   icon: React.ElementType;
   href: string;
+  completed?: boolean;
 }
 
 interface AnalysisSidebarProps {
@@ -29,6 +31,7 @@ interface AnalysisSidebarProps {
 
 export function AnalysisSidebar({
   currentStep,
+  completedSteps,
   progress,
 }: AnalysisSidebarProps) {
   const pathname = usePathname();
@@ -40,24 +43,28 @@ export function AnalysisSidebar({
       label: "Patient Info",
       icon: UserRound,
       href: "/analysis",
+      completed: completedSteps.includes("patient-info"),
     },
     {
       id: "voice",
       label: "Voice Analysis",
       icon: Speech,
       href: "/analysis/voice",
+      completed: completedSteps.includes("voice"),
     },
     {
       id: "drawing",
       label: "Drawing Analysis",
       icon: SquarePen,
       href: "/analysis/drawing",
+      completed: completedSteps.includes("drawing"),
     },
     {
       id: "gait",
       label: "Gait Analysis",
       icon: Footprints,
       href: "/analysis/gait",
+      completed: completedSteps.includes("gait"),
     },
     {
       id: "dashboard",
@@ -108,6 +115,9 @@ export function AnalysisSidebar({
                 >
                   <Icon className="w-5 h-5" />
                   <span className="text-sm font-medium">{item.label}</span>
+                  {item.completed && (
+                    <CheckCircle2 className="w-4 h-4 text-cyan-400 ml-auto" />
+                  )}
                 </Link>
               </li>
             );

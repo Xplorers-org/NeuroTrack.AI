@@ -3,12 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnalysisSidebar } from "@/components/analysis/analysis-sidebar";
-import { AnalysisCompleteDialog } from "@/components/analysis/analysis-complete-dialog";
 import { StepIndicator } from "@/components/analysis/step-indicator";
 import { VoiceAnalysis } from "@/components/analysis/voice-analysis";
 import { PatientData } from "@/components/analysis/patient-info-form";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, CheckCircle2, CircleCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
@@ -16,7 +14,6 @@ const voiceSteps = [
   { id: 1, title: "Upload/Record", subtitle: "Voice sample" },
   { id: 2, title: "Preview", subtitle: "Review your recording" },
   { id: 3, title: "Submit", subtitle: "Confirm and analyze" },
-  { id: 4, title: "Results", subtitle: "View summary" },
 ];
 
 type VoiceAnalysisResult = {
@@ -389,20 +386,11 @@ export default function VoiceAnalysisPage() {
                   <p className="text-sm text-muted-foreground dark:text-gray-400">Severity Level:</p>
                   <p className="text-xl font-semibold text-amber-500">{severityLabel}</p>
                 </div>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-6">
-                  <h4 className="text-2xl font-bold text-foreground dark:text-white mb-4">What is UPDRS?</h4>
-                  <p className="text-sm text-muted-foreground dark:text-gray-400 mb-4">
-                    The UPDRS is a comprehensive rating scale used to evaluate the severity of Parkinson&apos;s disease symptoms. Our voice analysis estimates motor symptoms based on speech patterns.
-                  </p>
-                  <ul className="space-y-2 text-sm text-foreground dark:text-white">
-                    <li><span className="font-semibold">0-20:</span> Mild/Early - Very light or early signs</li>
-                    <li><span className="font-semibold">21-40:</span> Moderate - Some tremor, speech changes possible</li>
-                    <li><span className="font-semibold">41-60:</span> Advanced - Noticeable speech/movement difficulties</li>
-                    <li><span className="font-semibold">61+:</span> Severe - Significant motor impairment</li>
-                  </ul>
+                <div className="flex justify-between items-center py-2 border-b border-border dark:border-white/10">
+                  <span className="text-muted-foreground dark:text-gray-400">Patient ID</span>
+                  <span className="font-medium text-foreground dark:text-white">
+                    {patientData?.patientId || "N/A"}
+                  </span>
                 </div>
 
                 <div className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-6">
@@ -416,24 +404,11 @@ export default function VoiceAnalysisPage() {
                     Important: This is a screening tool based on voice analysis only. Please consult a healthcare professional for proper diagnosis and treatment.
                   </p>
                 </div>
-              </div>
-
-              <div className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-6">
-                <h4 className="text-3xl font-bold text-foreground dark:text-white mb-1">Recommendations</h4>
-                <p className="text-sm text-muted-foreground dark:text-gray-400 mb-4">Based on your analysis results</p>
-                <div className="space-y-3">
-                  {[
-                    "Consult with a neurologist for proper evaluation",
-                    "Regular exercise and physical activity are important",
-                    "Consider speech exercises if speech changes are noted",
-                    "Maintain a healthy diet and lifestyle",
-                    "Keep a symptom diary for medical appointments",
-                  ].map((item) => (
-                    <div key={item} className="flex items-center gap-3 rounded-lg bg-secondary dark:bg-[#0f1219] p-3">
-                      <CircleCheck className="w-4 h-4 text-primary shrink-0" />
-                      <p className="text-sm text-foreground dark:text-white">{item}</p>
-                    </div>
-                  ))}
+                <div className="flex justify-between items-center py-2 border-b border-border dark:border-white/10">
+                  <span className="text-muted-foreground dark:text-gray-400">Age</span>
+                  <span className="font-medium text-foreground dark:text-white">
+                    {patientData?.age || "N/A"}
+                  </span>
                 </div>
               </div>
 
@@ -503,18 +478,6 @@ export default function VoiceAnalysisPage() {
           )}
         </div>
       </main>
-
-      <AnalysisCompleteDialog
-        open={resultActionsOpen}
-        onOpenChange={setResultActionsOpen}
-        completedAnalysisLabel="voice"
-        primaryActions={[
-          { label: "Continue to Drawing Analysis", onClick: () => closeDialogAndNavigate("/analysis/drawing") },
-          { label: "Continue to Gait Analysis", onClick: () => closeDialogAndNavigate("/analysis/gait") },
-        ]}
-        onViewCurrentResult={handleGoToCurrentVoiceResult}
-        onViewDashboard={() => closeDialogAndNavigate("/analysis/dashboard")}
-      />
     </div>
   );
 }

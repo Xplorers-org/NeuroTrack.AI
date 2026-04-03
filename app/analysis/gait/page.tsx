@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { AnalysisCompleteDialog } from "@/components/analysis/analysis-complete-dialog";
 import { AnalysisSidebar } from "@/components/analysis/analysis-sidebar";
 import { StepIndicator } from "@/components/analysis/step-indicator";
 import { Button } from "@/components/ui/button";
@@ -32,7 +31,6 @@ type GaitAnalysisResult = {
 export default function GaitAnalysisPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [resultActionsOpen, setResultActionsOpen] = useState(false);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
