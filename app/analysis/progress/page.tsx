@@ -5,7 +5,15 @@ import { useRouter } from "next/navigation";
 import { AnalysisSidebar } from "@/components/analysis/analysis-sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Download, FileText, RefreshCw, Search } from "lucide-react";
+import { Download, FileText, RefreshCw, Search, Filter } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
+} from "@/components/ui/dropdown-menu";
 import {
   CartesianGrid,
   Legend,
@@ -190,6 +198,11 @@ export default function ProgressPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedTypes, setSelectedTypes] = useState<Set<AnalysisHistoryItem["type"]>>(
+    new Set(["voice", "gait", "drawing"])
+  );
+  const [dateFromFilter, setDateFromFilter] = useState<string>("");
+  const [dateToFilter, setDateToFilter] = useState<string>("");
 
   const sortedHistory = useMemo(
     () =>
@@ -198,6 +211,27 @@ export default function ProgressPage() {
           new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
       ),
     [history],
+  );
+
+  const filteredHistory = useMemo(
+    () => {
+      let result = sortedHistory.filter((item) => selectedTypes.has(item.type));
+
+      if (dateFromFilter) {
+        const fromDate = new Date(dateFromFilter).getTime();
+        result = result.filter((item) => new Date(item.submittedAt).getTime() >= fromDate);
+      }
+
+      if (dateToFilter) {
+        const toDate = new Date(dateToFilter);
+        toDate.setHours(23, 59, 59, 999);
+        const toTime = toDate.getTime();
+        result = result.filter((item) => new Date(item.submittedAt).getTime() <= toTime);
+      }
+
+      return result;
+    },
+    [sortedHistory, selectedTypes, dateFromFilter, dateToFilter],
   );
 
   const progression = useMemo(() => {
@@ -236,11 +270,12 @@ export default function ProgressPage() {
   }, [history]);
 
   const fetchHistoryByPatientId = async (
-    requestedPatientId: string,
+    searchQuery: string,
     fromRefresh = false,
   ) => {
-    if (!requestedPatientId.trim()) {
-      setError("Please enter a patient ID.");
+    const query = searchQuery.trim();
+    if (!query) {
+      setError("Please enter a patient ID or name.");
       setHistory([]);
       return;
     }
@@ -253,38 +288,95 @@ export default function ProgressPage() {
     }
 
     try {
-      const res = await fetch(
-        `/api/patients/${encodeURIComponent(requestedPatientId.trim())}/history`,
+      // First, search for the patient by ID or name
+      console.log("[progress] Searching for patient:", query);
+      const searchRes = await fetch(
+        `/api/patients/search?query=${encodeURIComponent(query)}`
       );
 
-      if (res.status === 404) {
+      if (!searchRes.ok) {
         setHistory([]);
-        setError("No history found for this patient ID.");
+        setError(
+          `Patient not found. Check the ID or name and try again.`
+        );
+        setPatientData(null);
         return;
       }
 
-      if (!res.ok) {
+      const searchData = await searchRes.json();
+      console.log("[progress] Search result:", searchData);
+      const { patient_id: foundPatientId } = searchData;
+
+      if (!foundPatientId) {
+        setHistory([]);
+        setError("Search returned no patient ID.");
+        setPatientData(null);
+        return;
+      }
+
+      console.log("[progress] Found patient_id:", foundPatientId, "| Type:", typeof foundPatientId, "| Length:", foundPatientId?.length);
+
+      // Now fetch history using the found patient_id
+      const historyUrl = `/api/patients/${encodeURIComponent(foundPatientId)}/history`;
+      console.log("[progress] 🔗 Calling history endpoint:", historyUrl);
+      const historyRes = await fetch(historyUrl);
+
+      console.log("[progress] History response status:", historyRes.status);
+
+      if (historyRes.status === 404) {
+        console.log("[progress] No history found (404) for patient_id:", foundPatientId);
+        setHistory([]);
+        setError("No analysis history found for this patient.");
+        return;
+      }
+
+      if (!historyRes.ok) {
         let message = "Failed to load progress data.";
         try {
-          const data = await res.json();
+          const data = await historyRes.json();
+          console.log("[progress] History error response:", data);
           message = typeof data?.error === "string" ? data.error : message;
         } catch {
-          const text = await res.text();
+          const text = await historyRes.text();
           if (text) message = text;
         }
         throw new Error(message);
       }
 
-      const rows: DbHistoryRow[] = await res.json();
+      const rows: DbHistoryRow[] = await historyRes.json();
+      console.log("[progress] Fetched rows:", rows?.length || 0);
       const normalized = rows
         .map((row) => toHistoryItem(row))
         .filter((item): item is AnalysisHistoryItem => Boolean(item));
 
+      console.log("[progress] Normalized items:", normalized?.length || 0);
       setHistory(normalized);
-      setPatientData((prev) => ({
-        ...prev,
-        patientId: requestedPatientId.trim(),
-      }));
+
+      // Fetch patient details
+      try {
+        const patientRes = await fetch(
+          `/api/debug/patient/${encodeURIComponent(foundPatientId)}`
+        );
+        if (patientRes.ok) {
+          const patientInfo = await patientRes.json();
+          const pt = patientInfo?.patient;
+          setPatientData({
+            fullName: pt?.full_name || undefined,
+            patientId: foundPatientId,
+            gender: pt?.gender || undefined,
+            age: pt?.age || undefined,
+          });
+        } else {
+          setPatientData({
+            patientId: foundPatientId,
+          });
+        }
+      } catch (err) {
+        console.error("Failed to fetch patient details:", err);
+        setPatientData({
+          patientId: foundPatientId,
+        });
+      }
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -292,6 +384,7 @@ export default function ProgressPage() {
           : "Failed to load progress data.",
       );
       setHistory([]);
+      setPatientData(null);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -333,7 +426,7 @@ export default function ProgressPage() {
     const payload = {
       patient: patientData,
       generatedAt: new Date().toISOString(),
-      history: sortedHistory,
+      history: filteredHistory,
     };
 
     downloadFile(
@@ -353,7 +446,7 @@ export default function ProgressPage() {
       "Severity",
       "Submitted At",
     ];
-    const rows = sortedHistory.map((item) => [
+    const rows = filteredHistory.map((item) => [
       item.type,
       item.source,
       item.fileName,
@@ -374,6 +467,18 @@ export default function ProgressPage() {
       csvData,
       "text/csv;charset=utf-8;",
     );
+  };
+
+  const toggleTypeFilter = (type: AnalysisHistoryItem["type"]) => {
+    setSelectedTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(type)) {
+        next.delete(type);
+      } else {
+        next.add(type);
+      }
+      return next;
+    });
   };
 
   return (
@@ -401,7 +506,7 @@ export default function ProgressPage() {
               <Input
                 value={patientId}
                 onChange={(e) => setPatientId(e.target.value)}
-                placeholder="Enter patient ID (e.g., PAT-2024-001)"
+                placeholder="Search by patient ID (p001) or name (e.g., John)"
                 className="bg-background dark:bg-[#0f1219] border-border dark:border-white/10"
               />
               <Button
@@ -424,14 +529,49 @@ export default function ProgressPage() {
                 Refresh
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground dark:text-gray-400 mt-3">
-              {patientData?.fullName
-                ? `Patient: ${patientData.fullName}${patientData.patientId ? ` (${patientData.patientId})` : ""}`
-                : patientData?.patientId
-                  ? `Patient ID: ${patientData.patientId}`
-                  : "No patient selected."}
-            </p>
           </div>
+
+          {patientData?.fullName || patientData?.patientId ? (
+            <div className="bg-gradient-to-r from-primary/10 to-blue-600/10 dark:from-primary/20 dark:to-purple-500/20 rounded-2xl border border-primary/30 dark:border-primary/20 p-6 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                
+               <div className="flex flex-col">
+                  <span className="text-xs font-semibold text-muted-foreground dark:text-gray-400 uppercase tracking-wide mb-2">
+                    Patient ID
+                  </span>
+                  <span className="text-lg font-bold text-primary dark:text-cyan-400">
+                    {patientData.patientId || "N/A"}
+                  </span>
+                </div>
+                
+                <div className="flex flex-col">
+                  <span className="text-xs font-semibold text-muted-foreground dark:text-gray-400 uppercase tracking-wide mb-2">
+                    Full Name
+                  </span>
+                  <span className="text-lg font-bold text-foreground dark:text-white">
+                    {patientData.fullName || "N/A"}
+                  </span>
+                </div>
+
+                <div className="flex flex-col">
+                  <span className="text-xs font-semibold text-muted-foreground dark:text-gray-400 uppercase tracking-wide mb-2">
+                    Gender
+                  </span>
+                  <span className="text-lg font-bold text-foreground dark:text-white">
+                    {patientData.gender ? patientData.gender.charAt(0).toUpperCase() + patientData.gender.slice(1) : "N/A"}
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs font-semibold text-muted-foreground dark:text-gray-400 uppercase tracking-wide mb-2">
+                    Age
+                  </span>
+                  <span className="text-lg font-bold text-foreground dark:text-white">
+                    {patientData.age ? `${patientData.age} years` : "N/A"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {error && (
             <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 px-5 py-4 text-sm text-amber-500">
@@ -500,16 +640,56 @@ export default function ProgressPage() {
           </div>
 
           <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
               <h3 className="text-lg font-semibold text-foreground dark:text-white">
                 Analysis History
               </h3>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-border dark:border-white/10"
+                    >
+                      <Filter className="w-4 h-4 mr-2" />
+                      Filter by Type
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 dark:bg-[#1f2a3e] dark:border-white/10">
+                    <DropdownMenuLabel className="dark:text-gray-300">Analysis Type</DropdownMenuLabel>
+                    <DropdownMenuSeparator className="dark:bg-white/10" />
+                    <DropdownMenuCheckboxItem
+                      checked={selectedTypes.has("voice")}
+                      onCheckedChange={() => toggleTypeFilter("voice")}
+                      className="dark:hover:bg-white/10"
+                    >
+                      <span className="w-3 h-3 rounded bg-cyan-500 mr-2" />
+                      Voice
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={selectedTypes.has("gait")}
+                      onCheckedChange={() => toggleTypeFilter("gait")}
+                      className="dark:hover:bg-white/10"
+                    >
+                      <span className="w-3 h-3 rounded bg-purple-500 mr-2" />
+                      Gait
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={selectedTypes.has("drawing")}
+                      onCheckedChange={() => toggleTypeFilter("drawing")}
+                      className="dark:hover:bg-white/10"
+                    >
+                      <span className="w-3 h-3 rounded bg-green-500 mr-2" />
+                      Drawing
+                    </DropdownMenuCheckboxItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button
                   variant="outline"
                   onClick={handleDownloadCsv}
                   className="border-border dark:border-white/10"
-                  disabled={sortedHistory.length === 0}
+                  disabled={filteredHistory.length === 0}
                 >
                   <Download className="w-4 h-4 mr-2" />
                   Download CSV
@@ -517,15 +697,55 @@ export default function ProgressPage() {
                 <Button
                   onClick={handleDownloadJson}
                   className="bg-primary hover:bg-primary/90"
-                  disabled={sortedHistory.length === 0}
+                  disabled={filteredHistory.length === 0}
                 >
                   <FileText className="w-4 h-4 mr-2" />
                   Download JSON
                 </Button>
               </div>
             </div>
+            
+            <div className="flex flex-col md:flex-row gap-3 mb-4">
+              <div className="flex-1">
+                <label className="text-xs font-medium text-muted-foreground dark:text-gray-400 mb-1 block">
+                  From Date
+                </label>
+                <Input
+                  type="date"
+                  value={dateFromFilter}
+                  onChange={(e) => setDateFromFilter(e.target.value)}
+                  className="bg-background dark:bg-[#0f1219] border-border dark:border-white/10"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="text-xs font-medium text-muted-foreground dark:text-gray-400 mb-1 block">
+                  To Date
+                </label>
+                <Input
+                  type="date"
+                  value={dateToFilter}
+                  onChange={(e) => setDateToFilter(e.target.value)}
+                  className="bg-background dark:bg-[#0f1219] border-border dark:border-white/10"
+                />
+              </div>
+              {(dateFromFilter || dateToFilter) && (
+                <div className="flex items-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setDateFromFilter("");
+                      setDateToFilter("");
+                    }}
+                    className="text-xs dark:hover:bg-white/10"
+                  >
+                    Clear Dates
+                  </Button>
+                </div>
+              )}
+            </div>
 
-            {sortedHistory.length === 0 ? (
+            {filteredHistory.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border dark:border-white/10 bg-secondary/50 dark:bg-[#0f1219] p-6 text-sm text-muted-foreground dark:text-gray-400">
                 No database analysis history available yet for this patient.
               </div>
@@ -543,7 +763,7 @@ export default function ProgressPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedHistory.map((item) => (
+                    {filteredHistory.map((item) => (
                       <tr
                         key={item.id}
                         className="border-b border-border/60 dark:border-white/10"

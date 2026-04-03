@@ -12,7 +12,6 @@ import {
   SquarePen,
   LayoutDashboard,
   FileText,
-  CheckCircle2,
   ChartLine,
 } from "lucide-react";
 
@@ -116,9 +115,6 @@ export function AnalysisSidebar({
                 >
                   <Icon className="w-5 h-5" />
                   <span className="text-sm font-medium">{item.label}</span>
-                  {item.completed && (
-                    <CheckCircle2 className="w-4 h-4 text-cyan-400 ml-auto" />
-                  )}
                 </Link>
               </li>
             );
@@ -126,24 +122,7 @@ export function AnalysisSidebar({
         </ul>
       </nav>
 
-      {/* Progress */}
-      <div className="border-t border-sidebar-border px-5 py-6">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-muted-foreground">Progress</span>
-          <span className="text-sm font-medium text-sidebar-foreground">
-            {progress.current}/{progress.total}
-          </span>
-        </div>
-        <div className="h-1.5 overflow-hidden rounded-full bg-sidebar-accent">
-          <div
-            className="h-full rounded-full bg-linear-to-r from-cyan-500 to-blue-600 transition-all duration-500"
-            style={{ width: `${(progress.current / progress.total) * 100}%` }}
-          />
-        </div>
-        <span className="mt-2 block text-xs text-muted-foreground">
-          Analyses completed
-        </span>
-      </div>
+
     </aside>
   );
 }

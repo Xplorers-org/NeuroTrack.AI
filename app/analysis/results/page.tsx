@@ -374,7 +374,7 @@ export default function ResultsPage() {
                   </div>
                 </div>
               </div>
-
+          <p className="text-xl font-semibold py-4 ml-2">Lateset test Results</p>
               <div className="grid md:grid-cols-3 gap-4 mb-6">
                 {SUMMARY_CARDS.map((card) => {
                   const result = latestSummary[card.key];
@@ -399,14 +399,14 @@ export default function ResultsPage() {
                           ? new Date(result.submittedAt).toLocaleString()
                           : "No submission yet"}
                       </p>
-                      <Button
+                      {/* <Button
                         variant="outline"
                         onClick={() => router.push(card.route)}
                         className="mt-4 w-full border-border dark:border-white/10"
                       >
                         <Eye className="w-4 h-4 mr-2" />
                         View
-                      </Button>
+                      </Button> */}
                     </div>
                   );
                 })}

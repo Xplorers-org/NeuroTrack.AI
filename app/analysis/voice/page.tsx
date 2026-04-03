@@ -15,6 +15,7 @@ const voiceSteps = [
   { id: 1, title: "Upload/Record", subtitle: "Voice sample" },
   { id: 2, title: "Preview", subtitle: "Review your recording" },
   { id: 3, title: "Submit", subtitle: "Confirm and analyze" },
+  { id: 4, title: "Results", subtitle: "View your results" },
 ];
 
 type VoiceAnalysisResult = {
@@ -168,6 +169,29 @@ export default function VoiceAnalysisPage() {
     if (severity === "Advanced")
       return "Noticeable speech or movement difficulties.";
     return "Significant motor impairment may be present.";
+  };
+
+  const getSeverityColor = (prediction: number) => {
+    if (prediction <= 20) return "green";
+    if (prediction <= 40) return "yellow";
+    if (prediction <= 60) return "orange";
+    return "red";
+  };
+
+  const getSeverityBgColor = (prediction: number) => {
+    const color = getSeverityColor(prediction);
+    if (color === "green") return "bg-green-100 dark:bg-green-500/20";
+    if (color === "yellow") return "bg-yellow-100 dark:bg-yellow-500/20";
+    if (color === "orange") return "bg-orange-100 dark:bg-orange-500/20";
+    return "bg-red-100 dark:bg-red-500/20";
+  };
+
+  const getSeverityTextColor = (prediction: number) => {
+    const color = getSeverityColor(prediction);
+    if (color === "green") return "text-green-600 dark:text-green-400";
+    if (color === "yellow") return "text-yellow-600 dark:text-yellow-400";
+    if (color === "orange") return "text-orange-600 dark:text-orange-400";
+    return "text-red-600 dark:text-red-400";
   };
 
   const updrsScore = voiceResult?.prediction;
@@ -348,7 +372,7 @@ export default function VoiceAnalysisPage() {
 
           {voiceStep === 4 && (
             <div className="space-y-6">
-              <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-8">
+              <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-10">
                 <div className="flex items-start justify-between gap-6">
                   <div>
                     <h3 className="text-2xl md:text-3xl font-bold text-foreground dark:text-white">
@@ -367,12 +391,20 @@ export default function VoiceAnalysisPage() {
                     Analysis Complete
                   </h4>
                   <p className="text-sm text-foreground dark:text-white">
-                    Patient:{" "}
+                    Patient :{" "}
                     <span className="font-semibold text-primary">
                       {patientData?.fullName || "N/A"}
                     </span>
                   </p>
-                  <p className="text-lg font-semibold text-foreground dark:text-white mt-2">
+
+                  <p className="text-sm text-foreground dark:text-gray-400">
+                    Patient ID :{" "}
+                  
+                   <span className="font-semibold text-primary">
+                      {patientData?.patientId || "N/A"}
+                    </span>
+                 </p>
+                  {/* <p className="text-lg font-semibold text-foreground dark:text-white mt-2">
                     UPDRS Prediction:{" "}
                     <span className="text-amber-500">
                       {formattedUpdrsScore}
@@ -381,101 +413,119 @@ export default function VoiceAnalysisPage() {
                     <span className="ml-3 text-xs bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300 px-2.5 py-1 rounded-full align-middle">
                       {severityLabel}
                     </span>
-                  </p>
+                  </p> */}
                 </div>
 
-                <div className="mt-6 bg-secondary dark:bg-[#0f1219] rounded-lg p-4 inline-block">
-                  <p className="text-sm text-muted-foreground dark:text-gray-400">
-                    Patient
-                  </p>
-                  <p className="font-semibold text-foreground dark:text-white">
-                    {patientData?.fullName || "N/A"}
-                  </p>
-                  <p className="text-sm text-primary mt-1">
-                    UPDRS Prediction: {formattedUpdrsScore}
-                  </p>
-                </div>
-
-                <div className="text-center mt-8">
-                  <p className="tracking-[0.2em] text-xs text-muted-foreground dark:text-gray-400">
-                    UPDRS PREDICTION SCORE
-                  </p>
-                  <p className="text-sm text-muted-foreground dark:text-gray-400 mb-2">
-                    for {patientData?.fullName || "Patient"}
-                  </p>
-                  <p className="text-7xl font-bold text-amber-500 leading-none">
-                    {formattedUpdrsScore}
-                    <span className="text-4xl text-muted-foreground">/108</span>
-                  </p>
-                  <p className="mt-3 text-3xl font-bold text-foreground dark:text-white uppercase">
-                    {severityLabel} Severity
-                  </p>
-                  <p className="text-sm text-muted-foreground dark:text-gray-400 mt-2">
-                    {severityDescription}
-                  </p>
-                </div>
-
-                <div className="mt-6">
-                  <div className="flex justify-between text-xs md:text-sm text-foreground dark:text-white mb-2">
-                    <span>Mild (0-20)</span>
-                    <span>Moderate (21-40)</span>
-                    <span>Advanced (41-60)</span>
-                    <span>Severe (61+)</span>
-                  </div>
-                  <div className="h-3 rounded-full bg-secondary dark:bg-[#0f1219] overflow-hidden">
-                    <div
-                      className="h-full bg-primary"
-                      style={{ width: progressWidth }}
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-6 bg-secondary dark:bg-[#0f1219] rounded-lg p-4">
-                  <p className="text-sm text-muted-foreground dark:text-gray-400">
-                    Severity Level:
-                  </p>
-                  <p className="text-xl font-semibold text-amber-500">
-                    {severityLabel}
-                  </p>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-border dark:border-white/10">
-                  <span className="text-muted-foreground dark:text-gray-400">
-                    Patient ID
-                  </span>
-                  <span className="font-medium text-foreground dark:text-white">
-                    {patientData?.patientId || "N/A"}
-                  </span>
-                </div>
-
-                <div className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-6">
-                  <h4 className="text-2xl font-bold text-foreground dark:text-white mb-4">
-                    Your Result
-                  </h4>
-                  <div className="bg-secondary dark:bg-[#0f1219] rounded-lg p-6 text-center mb-4">
-                    <p className="text-5xl font-bold text-amber-500">
-                      {formattedUpdrsScore}
+      
+                <div className="border  dark:bg-[#0f1219] rounded-xl p-8 mt-8">
+                  <div className="text-center">
+                    <p className="tracking-[0.2em] text-xs text-muted-foreground dark:text-gray-400 mb-2">
+                      UPDRS PREDICTION SCORE
                     </p>
-                    <p className="text-2xl font-semibold text-foreground dark:text-white mt-2">
-                      {severityLabel} severity
+                    <p className="text-sm text-muted-foreground dark:text-gray-400 mb-4">
+                      for {patientData?.fullName || "Patient"}
                     </p>
-                    <p className="text-sm text-muted-foreground dark:text-gray-400 mt-2">
+                    <p className="text-7xl font-bold leading-none">
+                      <span className={getSeverityTextColor(updrsScore || 0)}>
+                        {formattedUpdrsScore}
+                      </span>
+                      <span className="text-4xl text-muted-foreground">/108</span>
+                    </p>
+                    <p className="mt-4 text-3xl font-bold text-foreground dark:text-white uppercase">
+                      {severityLabel} SEVERITY
+                    </p>
+                    <p className="text-sm text-muted-foreground dark:text-gray-400 mt-3">
                       {severityDescription}
                     </p>
                   </div>
-                  <p className="text-xs text-muted-foreground dark:text-gray-400">
+
+                  <div className="mt-6">
+                    <div className="flex justify-between text-xs md:text-sm text-foreground dark:text-white mb-2">
+                      <span>Mild (0-20)</span>
+                      <span>Moderate (21-40)</span>
+                      <span>Advanced (41-60)</span>
+                      <span>Severe (61+)</span>
+                    </div>
+                    <div className="h-3 rounded-full bg-blue-200 dark:bg-blue-900/30 overflow-hidden">
+                      <div
+                        className="h-full bg-blue-500"
+                        style={{ width: progressWidth }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className={`mt-6 ${getSeverityBgColor(updrsScore || 0)} rounded-lg p-4`}>
+                    <p className="text-sm text-muted-foreground dark:text-gray-400">
+                      Severity Level:
+                    </p>
+                    <p className={`text-xl font-semibold ${getSeverityTextColor(updrsScore || 0)}`}>
+                      {severityLabel}
+                    </p>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground dark:text-gray-400 mt-4">
                     Important: This is a screening tool based on voice analysis
                     only. Please consult a healthcare professional for proper
                     diagnosis and treatment.
                   </p>
+                
+
+                <div className="mt-8 pt-8 border-t  dark:border-white/10">
+                  <h4 className="text-2xl font-bold text-foreground dark:text-white mb-1">
+                    Understanding Your UPDRS Score
+                  </h4>
+                  <p className="text-sm text-muted-foreground dark:text-gray-400 mb-6">
+                    Unified Parkinson&apos;s Disease Rating Scale (UPDRS)
+                  </p>
+
+                  <h5 className="text-lg font-semibold text-foreground dark:text-white mb-3">
+                    What is UPDRS?
+                  </h5>
+                  <p className="text-sm text-muted-foreground dark:text-gray-300 mb-6">
+                    The UPDRS is a comprehensive rating scale used to evaluate the severity of Parkinson&apos;s disease symptoms. Our voice analysis estimates your motor symptoms based on speech patterns.
+                  </p>
+
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-4">
+                      <div className="w-4 h-4 rounded-full bg-green-500 mt-1 shrink-0" />
+                      <div>
+                        <p className="font-semibold text-foreground dark:text-white">
+                          0-20: Mild/Early - Very light or early signs
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-4">
+                      <div className="w-4 h-4 rounded-full bg-yellow-500 mt-1 shrink-0" />
+                      <div>
+                        <p className="font-semibold text-foreground dark:text-white">
+                          21-40: Moderate - Some tremor, speech changes possible
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-4">
+                      <div className="w-4 h-4 rounded-full bg-orange-500 mt-1 shrink-0" />
+                      <div>
+                        <p className="font-semibold text-foreground dark:text-white">
+                          41-60: Advanced - Noticeable speech/movement difficulties
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-4">
+                      <div className="w-4 h-4 rounded-full bg-red-500 mt-1 shrink-0" />
+                      <div>
+                        <p className="font-semibold text-foreground dark:text-white">
+                          61+: Severe - Significant motor impairment
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center py-2 border-b border-border dark:border-white/10">
-                  <span className="text-muted-foreground dark:text-gray-400">
-                    Age
-                  </span>
-                  <span className="font-medium text-foreground dark:text-white">
-                    {patientData?.age || "N/A"}
-                  </span>
-                </div>
+
+            </div>
+
               </div>
 
               <div className="flex justify-between mt-8">

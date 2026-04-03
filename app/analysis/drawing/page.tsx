@@ -21,6 +21,7 @@ const drawingSteps = [
 
 type PatientSessionData = {
   fullName?: string;
+  patientId?: string;
   gender?: string;
   age?: string | number;
 };
@@ -131,17 +132,49 @@ export default function DrawingAnalysisPage() {
   };
 
   const getSeverityFromScore = (score: number) => {
-    if (score < 40) return "Stable";
-    if (score < 70) return "Mild irregularity";
-    return "Marked irregularity";
+    if (score < 38) return "Normal Pattern";
+    if (score < 55) return "Mild";
+    if (score < 70) return "Moderate";
+    if (score < 85) return "High";
+    return "Severe";
   };
 
   const getSeverityDescription = (severity: string) => {
-    if (severity === "Stable")
-      return "Drawing control appears relatively steady.";
-    if (severity === "Mild irregularity")
-      return "Some tremor or fine motor variation may be present.";
-    return "Clear motor irregularity may be present.";
+    if (severity === "Normal Pattern")
+      return "No motor impairment.";
+    if (severity === "Mild")
+      return "Slight motor irregularities observed.";
+    if (severity === "Moderate")
+      return "Noticeable motor impairment.";
+    if (severity === "High")
+      return "Significant motor impairment.";
+    return "Strong Parkinsonian motor patterns observed.";
+  };
+
+  const getSeverityColor = (score: number) => {
+    if (score < 38) return "green";
+    if (score < 55) return "yellow";
+    if (score < 70) return "orange";
+    if (score < 85) return "orange-red";
+    return "red";
+  };
+
+  const getSeverityBgColor = (score: number) => {
+    const color = getSeverityColor(score);
+    if (color === "green") return "bg-green-100 dark:bg-green-500/30";
+    if (color === "yellow") return "bg-yellow-100 dark:bg-yellow-500/30";
+    if (color === "orange") return "bg-orange-100 dark:bg-orange-500/30";
+    if (color === "orange-red") return "bg-orange-200 dark:bg-orange-600/40";
+    return "bg-red-100 dark:bg-red-500/30";
+  };
+
+  const getSeverityTextColor = (score: number) => {
+    const color = getSeverityColor(score);
+    if (color === "green") return "text-green-600 dark:text-green-400";
+    if (color === "yellow") return "text-yellow-600 dark:text-yellow-400";
+    if (color === "orange") return "text-orange-500 dark:text-orange-400";
+    if (color === "orange-red") return "text-orange-600 dark:text-orange-500";
+    return "text-red-600 dark:text-red-500";
   };
 
   const getProgress = () => {
@@ -540,7 +573,7 @@ export default function DrawingAnalysisPage() {
 
           {step === 4 && (
             <div className="space-y-6">
-              <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-8">
+              <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-10">
                 <div className="flex items-start justify-between gap-6">
                   <div>
                     <h3 className="text-2xl md:text-3xl font-bold text-foreground dark:text-white">
@@ -555,135 +588,138 @@ export default function DrawingAnalysisPage() {
                 </div>
 
                 <div className="mt-6 rounded-xl border border-primary/40 dark:border-primary/30 border-l-4 p-5 bg-primary/5 dark:bg-primary/10">
-                  <h4 className="text-xl font-semibold text-primary mb-2">
+                  <h4 className="text-xl font-semibold text-primary mb-3">
                     Analysis Complete
                   </h4>
                   <p className="text-sm text-foreground dark:text-white">
-                    Patient:{" "}
-                    <span className="font-semibold text-primary">
-                      {patientData?.fullName || "N/A"}
-                    </span>
+                    Patient : <span className="font-semibold text-primary">{patientData?.fullName || "N/A"}</span>
                   </p>
-                  <p className="text-lg font-semibold text-foreground dark:text-white mt-2">
-                    Drawing Score:{" "}
-                    <span className="text-amber-500">{activeScoreText}</span>
-                    <span className="text-muted-foreground"> / 100</span>
-                    <span className="ml-3 text-xs bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300 px-2.5 py-1 rounded-full align-middle">
-                      {activeSeverity}
-                    </span>
+                  <p className="text-sm text-foreground dark:text-white">
+                    Patient Id : <span className="font-semibold text-primary">{patientData?.patientId || "N/A"}</span>
+                  </p>
+                  <p className="text-sm text-foreground dark:text-white">
+                    Drawing Type : <span className="font-semibold text-primary">{activeResult?.drawing_type || previewLabel}</span>
                   </p>
                 </div>
 
-                <div className="mt-6 bg-secondary dark:bg-[#0f1219] rounded-lg p-4 inline-block">
-                  <p className="text-sm text-muted-foreground dark:text-gray-400">
-                    Drawing Type
-                  </p>
-                  <p className="font-semibold text-foreground dark:text-white">
-                    {activeResult?.drawing_type || previewLabel}
-                  </p>
-                  <p className="text-sm text-primary mt-1">
-                    Drawing Score: {activeScoreText}
-                  </p>
-                </div>
-
-                <div className="text-center mt-8">
-                  <p className="tracking-[0.2em] text-xs text-muted-foreground dark:text-gray-400">
-                    MOTOR IMPAIRMENT SCORE
-                  </p>
-                  <p className="text-sm text-muted-foreground dark:text-gray-400 mb-2">
-                    for {patientData?.fullName || "Patient"}
-                  </p>
-                  <p className="text-7xl font-bold text-amber-500 leading-none">
-                    {activeScoreText}
-                    <span className="text-4xl text-muted-foreground">/100</span>
-                  </p>
-                  <p className="mt-3 text-3xl font-bold text-foreground dark:text-white uppercase">
-                    {activeSeverity}
-                  </p>
-                  <p className="text-sm text-muted-foreground dark:text-gray-400 mt-2">
-                    {activeSeverityDescription}
-                  </p>
-                </div>
-
-                <div className="mt-6">
-                  <div className="flex justify-between text-xs md:text-sm text-foreground dark:text-white mb-2">
-                    <span>Stable (0-20)</span>
-                    <span>Mild (21-40)</span>
-                    <span>Moderate (41-70)</span>
-                    <span>Marked (71+)</span>
-                  </div>
-                  <div className="h-3 rounded-full bg-secondary dark:bg-[#0f1219] overflow-hidden">
-                    <div
-                      className="h-full bg-primary"
-                      style={{ width: activeProgressWidth }}
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-6 bg-secondary dark:bg-[#0f1219] rounded-lg p-4">
-                  <p className="text-sm text-muted-foreground dark:text-gray-400">
-                    Severity Level:
-                  </p>
-                  <p className="text-xl font-semibold text-amber-500">
-                    {activeSeverity}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-6">
-                  <h4 className="text-2xl font-bold text-foreground dark:text-white mb-4">
-                    What is Drawing Analysis?
-                  </h4>
-                  <p className="text-sm text-muted-foreground dark:text-gray-400 mb-4">
-                    Drawing analysis helps screen fine motor control by
-                    measuring tremor, pressure irregularity, and movement
-                    smoothness in spiral or wave patterns.
-                  </p>
-                  <ul className="space-y-2 text-sm text-foreground dark:text-white">
-                    <li>
-                      <span className="font-semibold">0-20:</span> Stable -
-                      smooth and consistent motion
-                    </li>
-                    <li>
-                      <span className="font-semibold">21-40:</span> Mild - small
-                      variations in drawing control
-                    </li>
-                    <li>
-                      <span className="font-semibold">41-70:</span> Moderate -
-                      visible irregular patterns
-                    </li>
-                    <li>
-                      <span className="font-semibold">71+:</span> Marked -
-                      strong motor irregularity
-                    </li>
-                  </ul>
-                </div>
-
-                <div className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-6">
-                  <h4 className="text-2xl font-bold text-foreground dark:text-white mb-4">
-                    Your Result
-                  </h4>
-                  <div className="bg-secondary dark:bg-[#0f1219] rounded-lg p-6 text-center mb-4">
-                    <p className="text-5xl font-bold text-amber-500">
-                      {activeScoreText}
+                <div className="border dark:bg-[#0f1219] rounded-xl p-10 mt-8">
+                  <div className="text-center">
+                    <p className="tracking-[0.2em] text-lg text-muted-foreground dark:text-gray-400 mb-2">
+                      MOTOR IMPAIRMENT SCORE
                     </p>
-                    <p className="text-2xl font-semibold text-foreground dark:text-white mt-2">
+                    <p className="text-sm text-muted-foreground dark:text-gray-400 mb-4">
+                      for {patientData?.fullName || "Patient"}
+                    </p>
+                    <p className="text-7xl font-bold leading-none">
+                      <span className={getSeverityTextColor(activeScore || 0)}>
+                        {activeScoreText}
+                      </span>
+                      <span className="text-4xl text-muted-foreground">/100</span>
+                    </p>
+                    <p className="mt-4 text-3xl font-bold text-foreground dark:text-white uppercase">
                       {activeSeverity}
                     </p>
-                    <p className="text-sm text-muted-foreground dark:text-gray-400 mt-2">
+                    <p className="text-sm text-muted-foreground dark:text-gray-400 mt-3">
                       {activeSeverityDescription}
                     </p>
                   </div>
-                  <p className="text-xs text-muted-foreground dark:text-gray-400">
+
+                  <div className="mt-6">
+                    <div className="flex justify-between text-xs md:text-sm text-foreground dark:text-white mb-2">
+                      <span>Normal (0-38)</span>
+                      <span>Mild (38-55)</span>
+                      <span>Moderate (55-70)</span>
+                      <span>High (70-85)</span>
+                      <span>Severe (85-100)</span>
+                    </div>
+                    <div className="h-3 rounded-full bg-blue-200 dark:bg-blue-900/30 overflow-hidden">
+                      <div
+                        className="h-full bg-blue-500"
+                        style={{ width: activeProgressWidth }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className={`mt-6 ${getSeverityBgColor(activeScore || 0)} rounded-lg p-4`}>
+                    <p className="text-sm text-muted-foreground dark:text-gray-400">
+                      Severity Level:
+                    </p>
+                    <p className={`text-xl font-semibold ${getSeverityTextColor(activeScore || 0)}`}>
+                      {activeSeverity}
+                    </p>
+                  </div>
+
+                  <p className="text-xs text-muted-foreground dark:text-gray-400 mt-4">
                     Important: This is a screening tool based on drawing
                     analysis only. Please consult a healthcare professional for
                     proper diagnosis and treatment.
                   </p>
+                
+
+                <div className="mt-8 pt-8 border-t border-border dark:border-white/10">
+                  <h4 className="text-2xl font-bold text-foreground dark:text-white mb-1">
+                    Understanding Your Drawing Analysis
+                  </h4>
+                  <p className="text-sm text-muted-foreground dark:text-gray-400 mb-6">
+                    Motor Impairment Assessment (Spiral & Wave Pattern Analysis)
+                  </p>
+
+                  <h5 className="text-lg font-semibold text-foreground dark:text-white mb-4">
+                    What is Drawing Analysis?
+                  </h5>
+                  <p className="text-sm text-muted-foreground dark:text-gray-300 mb-6">
+                    Drawing analysis helps screen fine motor control by measuring tremor, pressure irregularity, and movement smoothness in spiral or wave patterns.
+                  </p>
+
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-4">
+                      <div className="w-3 h-3 rounded-full bg-green-500 mt-1.5 shrink-0" />
+                      <div>
+                        <p className="font-semibold text-foreground dark:text-white">
+                          0-38: Normal Pattern - No motor impairment
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-4">
+                      <div className="w-3 h-3 rounded-full bg-yellow-500 mt-1.5 shrink-0" />
+                      <div>
+                        <p className="font-semibold text-foreground dark:text-white">
+                          38-55: Mild - Slight motor irregularities
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-4">
+                      <div className="w-3 h-3 rounded-full bg-orange-500 mt-1.5 shrink-0" />
+                      <div>
+                        <p className="font-semibold text-foreground dark:text-white">
+                          55-70: Moderate - Noticeable motor impairment
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-4">
+                      <div className="w-3 h-3 rounded-full bg-orange-600 mt-1.5 shrink-0" />
+                      <div>
+                        <p className="font-semibold text-foreground dark:text-white">
+                          70-85: High - Significant motor impairment
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-4">
+                      <div className="w-3 h-3 rounded-full bg-red-500 mt-1.5 shrink-0" />
+                      <div>
+                        <p className="font-semibold text-foreground dark:text-white">
+                          85-100: Severe - Strong Parkinsonian motor patterns
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 </div>
               </div>
-
-
 
               <div className="flex justify-between mt-8">
                 <Button
