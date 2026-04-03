@@ -490,28 +490,28 @@ export default function DrawingAnalysisPage() {
                 </h4>
                 <div className="grid sm:grid-cols-2 gap-4 text-base">
                   <p className="text-muted-foreground dark:text-gray-400">
-                    Patient:
+                    Patient :
                   </p>
                   <p className="text-foreground dark:text-white font-semibold">
                     {patientData?.fullName || "N/A"}
                   </p>
 
                   <p className="text-muted-foreground dark:text-gray-400">
-                    Age:
+                    Age :
                   </p>
                   <p className="text-foreground dark:text-white font-semibold">
                     {patientData?.age || "N/A"}
                   </p>
 
                   <p className="text-muted-foreground dark:text-gray-400">
-                    Gender:
+                    Gender :
                   </p>
                   <p className="text-foreground dark:text-white font-semibold capitalize">
                     {patientData?.gender || "N/A"}
                   </p>
 
                   <p className="text-muted-foreground dark:text-gray-400">
-                    Drawing:
+                    Drawing :
                   </p>
                   <p className="text-foreground dark:text-white font-semibold break-all">
                     {previewFile

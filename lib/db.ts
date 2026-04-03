@@ -52,9 +52,10 @@ const severityFromScore = (type: HistoryItem["type"], score?: number) => {
   }
 
   if (type === "gait") {
-    if (score < 40) return "Low irregularity";
-    if (score < 70) return "Moderate irregularity";
-    return "High irregularity";
+    if (score >= 86) return "Normal gait (Stable)";
+    if (score >= 71) return "Mild impairment";
+    if (score >= 56) return "Moderate impairment";
+    return "Severe gait instability";
   }
 
   if (score < 40) return "Stable";
