@@ -171,6 +171,29 @@ export default function VoiceAnalysisPage() {
     return "Significant motor impairment may be present.";
   };
 
+  const getSeverityColor = (prediction: number) => {
+    if (prediction <= 20) return "green";
+    if (prediction <= 40) return "yellow";
+    if (prediction <= 60) return "orange";
+    return "red";
+  };
+
+  const getSeverityBgColor = (prediction: number) => {
+    const color = getSeverityColor(prediction);
+    if (color === "green") return "bg-green-100 dark:bg-green-500/20";
+    if (color === "yellow") return "bg-yellow-100 dark:bg-yellow-500/20";
+    if (color === "orange") return "bg-orange-100 dark:bg-orange-500/20";
+    return "bg-red-100 dark:bg-red-500/20";
+  };
+
+  const getSeverityTextColor = (prediction: number) => {
+    const color = getSeverityColor(prediction);
+    if (color === "green") return "text-green-600 dark:text-green-400";
+    if (color === "yellow") return "text-yellow-600 dark:text-yellow-400";
+    if (color === "orange") return "text-orange-600 dark:text-orange-400";
+    return "text-red-600 dark:text-red-400";
+  };
+
   const updrsScore = voiceResult?.prediction;
   const formattedUpdrsScore =
     typeof updrsScore === "number" ? updrsScore.toFixed(1) : "N/A";
@@ -394,59 +417,58 @@ export default function VoiceAnalysisPage() {
                 </div>
 
       
-                <div className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-6 mt-10">
-
-                <div className="text-center mt-8">
-                  <p className="tracking-[0.2em] text-xs text-muted-foreground dark:text-gray-400">
-                    UPDRS PREDICTION SCORE
-                  </p>
-                  <p className="text-sm text-muted-foreground dark:text-gray-400 mb-2">
-                    for {patientData?.fullName || "Patient"}
-                  </p>
-                  <p className="text-7xl font-bold text-amber-500 leading-none">
-                    {formattedUpdrsScore}
-                    <span className="text-4xl text-muted-foreground">/108</span>
-                  </p>
-                  <p className="mt-3 text-3xl font-bold text-foreground dark:text-white uppercase">
-                    {severityLabel} Severity
-                  </p>
-                  <p className="text-sm text-muted-foreground dark:text-gray-400 mt-2">
-                    {severityDescription}
-                  </p>
-                </div>
-
-                <div className="mt-6">
-                  <div className="flex justify-between text-xs md:text-sm text-foreground dark:text-white mb-2">
-                    <span>Mild (0-20)</span>
-                    <span>Moderate (21-40)</span>
-                    <span>Advanced (41-60)</span>
-                    <span>Severe (61+)</span>
+                <div className="border  dark:bg-[#0f1219] rounded-xl p-8 mt-8">
+                  <div className="text-center">
+                    <p className="tracking-[0.2em] text-xs text-muted-foreground dark:text-gray-400 mb-2">
+                      UPDRS PREDICTION SCORE
+                    </p>
+                    <p className="text-sm text-muted-foreground dark:text-gray-400 mb-4">
+                      for {patientData?.fullName || "Patient"}
+                    </p>
+                    <p className="text-7xl font-bold leading-none">
+                      <span className={getSeverityTextColor(updrsScore || 0)}>
+                        {formattedUpdrsScore}
+                      </span>
+                      <span className="text-4xl text-muted-foreground">/108</span>
+                    </p>
+                    <p className="mt-4 text-3xl font-bold text-foreground dark:text-white uppercase">
+                      {severityLabel} SEVERITY
+                    </p>
+                    <p className="text-sm text-muted-foreground dark:text-gray-400 mt-3">
+                      {severityDescription}
+                    </p>
                   </div>
-                  <div className="h-3 rounded-full bg-secondary dark:bg-[#0f1219] overflow-hidden">
-                    <div
-                      className="h-full bg-primary"
-                      style={{ width: progressWidth }}
-                    />
+
+                  <div className="mt-6">
+                    <div className="flex justify-between text-xs md:text-sm text-foreground dark:text-white mb-2">
+                      <span>Mild (0-20)</span>
+                      <span>Moderate (21-40)</span>
+                      <span>Advanced (41-60)</span>
+                      <span>Severe (61+)</span>
+                    </div>
+                    <div className="h-3 rounded-full bg-blue-200 dark:bg-blue-900/30 overflow-hidden">
+                      <div
+                        className="h-full bg-blue-500"
+                        style={{ width: progressWidth }}
+                      />
+                    </div>
                   </div>
-                </div>
 
-                <div className="mt-6 bg-secondary dark:bg-[#0f1219] rounded-lg p-4">
-                  <p className="text-sm text-muted-foreground dark:text-gray-400">
-                    Severity Level:
-                  </p>
-                  <p className="text-xl font-semibold text-amber-500">
-                    {severityLabel}
-                  </p>
-                </div>
-                <div className="flex justify-between items-center py-2   ">
+                  <div className={`mt-6 ${getSeverityBgColor(updrsScore || 0)} rounded-lg p-4`}>
+                    <p className="text-sm text-muted-foreground dark:text-gray-400">
+                      Severity Level:
+                    </p>
+                    <p className={`text-xl font-semibold ${getSeverityTextColor(updrsScore || 0)}`}>
+                      {severityLabel}
+                    </p>
+                  </div>
 
-                     <p className="text-xs text-muted-foreground dark:text-gray-400 mx-2">
+                  <p className="text-xs text-muted-foreground dark:text-gray-400 mt-4">
                     Important: This is a screening tool based on voice analysis
                     only. Please consult a healthcare professional for proper
                     diagnosis and treatment.
                   </p>
-              
-                </div>
+                
 
                 <div className="mt-8 pt-8 border-t  dark:border-white/10">
                   <h4 className="text-2xl font-bold text-foreground dark:text-white mb-1">
@@ -501,9 +523,9 @@ export default function VoiceAnalysisPage() {
                     </div>
                   </div>
                 </div>
+
             </div>
 
-        
               </div>
 
               <div className="flex justify-between mt-8">
