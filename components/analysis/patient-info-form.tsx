@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { UserPlus, Search, Shield, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  UserPlus,
+  Search,
+  Shield,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,12 +47,15 @@ export function PatientInfoForm({ onNext, onPrevious }: PatientInfoFormProps) {
     const newErrors: Partial<PatientData> = {};
 
     if (mode === "register") {
-      if (!formData.fullName.trim()) newErrors.fullName = "Full name is required";
-      if (!formData.patientId.trim()) newErrors.patientId = "Patient ID is required";
+      if (!formData.fullName.trim())
+        newErrors.fullName = "Full name is required";
+      if (!formData.patientId.trim())
+        newErrors.patientId = "Patient ID is required";
       if (!formData.gender) newErrors.gender = "Gender is required";
       if (!formData.age.trim()) newErrors.age = "Age is required";
     } else {
-      if (!formData.patientId.trim()) newErrors.patientId = "Patient ID is required";
+      if (!formData.patientId.trim())
+        newErrors.patientId = "Patient ID is required";
     }
 
     setErrors(newErrors);
@@ -79,7 +88,7 @@ export function PatientInfoForm({ onNext, onPrevious }: PatientInfoFormProps) {
                 "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all",
                 mode === "register"
                   ? "bg-primary text-primary-foreground"
-                  : "bg-secondary dark:bg-white/5 text-muted-foreground dark:text-gray-400 hover:bg-secondary/80 dark:hover:bg-white/10"
+                  : "bg-secondary dark:bg-white/5 text-muted-foreground dark:text-gray-400 hover:bg-secondary/80 dark:hover:bg-white/10",
               )}
             >
               <UserPlus className="w-4 h-4" />
@@ -91,7 +100,7 @@ export function PatientInfoForm({ onNext, onPrevious }: PatientInfoFormProps) {
                 "flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all",
                 mode === "find"
                   ? "bg-primary text-primary-foreground"
-                  : "bg-secondary dark:bg-white/5 text-muted-foreground dark:text-gray-400 hover:bg-secondary/80 dark:hover:bg-white/10 border border-border dark:border-white/10"
+                  : "bg-secondary dark:bg-white/5 text-muted-foreground dark:text-gray-400 hover:bg-secondary/80 dark:hover:bg-white/10 border border-border dark:border-white/10",
               )}
             >
               <Search className="w-4 h-4" />
@@ -113,7 +122,9 @@ export function PatientInfoForm({ onNext, onPrevious }: PatientInfoFormProps) {
               </div>
               <div>
                 <h3 className="text-sm font-medium text-foreground dark:text-white">
-                  {mode === "register" ? "Register New Patient" : "Find Patient"}
+                  {mode === "register"
+                    ? "Register New Patient"
+                    : "Find Patient"}
                 </h3>
                 <p className="text-sm text-muted-foreground dark:text-gray-400 mt-0.5">
                   {mode === "register"
@@ -139,11 +150,13 @@ export function PatientInfoForm({ onNext, onPrevious }: PatientInfoFormProps) {
                   }
                   className={cn(
                     "mt-2 bg-background dark:bg-[#0f1219] border-border dark:border-white/10",
-                    errors.fullName && "border-destructive"
+                    errors.fullName && "border-destructive",
                   )}
                 />
                 {errors.fullName && (
-                  <p className="text-xs text-destructive mt-1">{errors.fullName}</p>
+                  <p className="text-xs text-destructive mt-1">
+                    {errors.fullName}
+                  </p>
                 )}
               </div>
 
@@ -159,11 +172,13 @@ export function PatientInfoForm({ onNext, onPrevious }: PatientInfoFormProps) {
                   }
                   className={cn(
                     "mt-2 bg-background dark:bg-[#0f1219] border-border dark:border-white/10",
-                    errors.patientId && "border-destructive"
+                    errors.patientId && "border-destructive",
                   )}
                 />
                 {errors.patientId && (
-                  <p className="text-xs text-destructive mt-1">{errors.patientId}</p>
+                  <p className="text-xs text-destructive mt-1">
+                    {errors.patientId}
+                  </p>
                 )}
               </div>
 
@@ -181,7 +196,7 @@ export function PatientInfoForm({ onNext, onPrevious }: PatientInfoFormProps) {
                     <SelectTrigger
                       className={cn(
                         "mt-2 bg-background dark:bg-[#0f1219] border-border dark:border-white/10",
-                        errors.gender && "border-destructive"
+                        errors.gender && "border-destructive",
                       )}
                     >
                       <SelectValue placeholder="Select gender" />
@@ -189,14 +204,12 @@ export function PatientInfoForm({ onNext, onPrevious }: PatientInfoFormProps) {
                     <SelectContent>
                       <SelectItem value="male">Male</SelectItem>
                       <SelectItem value="female">Female</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                      <SelectItem value="prefer-not-to-say">
-                        Prefer not to say
-                      </SelectItem>
                     </SelectContent>
                   </Select>
                   {errors.gender && (
-                    <p className="text-xs text-destructive mt-1">{errors.gender}</p>
+                    <p className="text-xs text-destructive mt-1">
+                      {errors.gender}
+                    </p>
                   )}
                 </div>
 
@@ -213,11 +226,13 @@ export function PatientInfoForm({ onNext, onPrevious }: PatientInfoFormProps) {
                     }
                     className={cn(
                       "mt-2 bg-background dark:bg-[#0f1219] border-border dark:border-white/10",
-                      errors.age && "border-destructive"
+                      errors.age && "border-destructive",
                     )}
                   />
                   {errors.age && (
-                    <p className="text-xs text-destructive mt-1">{errors.age}</p>
+                    <p className="text-xs text-destructive mt-1">
+                      {errors.age}
+                    </p>
                   )}
                 </div>
               </div>
@@ -237,7 +252,7 @@ export function PatientInfoForm({ onNext, onPrevious }: PatientInfoFormProps) {
                     }
                     className={cn(
                       "bg-background dark:bg-[#0f1219] border-border dark:border-white/10",
-                      errors.patientId && "border-destructive"
+                      errors.patientId && "border-destructive",
                     )}
                   />
                   <Button
@@ -249,27 +264,13 @@ export function PatientInfoForm({ onNext, onPrevious }: PatientInfoFormProps) {
                   </Button>
                 </div>
                 {errors.patientId && (
-                  <p className="text-xs text-destructive mt-1">{errors.patientId}</p>
+                  <p className="text-xs text-destructive mt-1">
+                    {errors.patientId}
+                  </p>
                 )}
               </div>
             </div>
           )}
-
-          {/* Privacy Notice */}
-          <div className="mt-6 bg-secondary/50 dark:bg-white/5 rounded-xl p-4">
-            <div className="flex items-start gap-3">
-              <Shield className="w-4 h-4 text-muted-foreground dark:text-gray-400 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-foreground dark:text-gray-300">
-                  Privacy Notice:
-                </p>
-                <p className="text-sm text-muted-foreground dark:text-gray-400 mt-0.5">
-                  Your information and voice sample will be securely transmitted to
-                  our analysis servers
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Footer Navigation */}
@@ -282,7 +283,10 @@ export function PatientInfoForm({ onNext, onPrevious }: PatientInfoFormProps) {
             <ChevronLeft className="w-4 h-4 mr-1" />
             Previous
           </Button>
-          <Button onClick={handleSubmit} className="bg-primary hover:bg-primary/90">
+          <Button
+            onClick={handleSubmit}
+            className="bg-primary hover:bg-primary/90"
+          >
             Next
             <ChevronRight className="w-4 h-4 ml-1" />
           </Button>

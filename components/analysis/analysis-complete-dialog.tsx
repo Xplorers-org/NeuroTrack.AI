@@ -1,22 +1,29 @@
-'use client'
+"use client";
 
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { CheckCircle2 } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { CheckCircle2 } from "lucide-react";
 
 type DialogAction = {
-  label: string
-  onClick: () => void
-}
+  label: string;
+  onClick: () => void;
+};
 
 type AnalysisCompleteDialogProps = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  completedAnalysisLabel: string
-  primaryActions: DialogAction[]
-  onViewCurrentResult: () => void
-  onViewDashboard: () => void
-}
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  completedAnalysisLabel: string;
+  primaryActions: DialogAction[];
+  onViewCurrentResult: () => void;
+  onViewDashboard: () => void;
+};
 
 export function AnalysisCompleteDialog({
   open,
@@ -34,7 +41,9 @@ export function AnalysisCompleteDialog({
             <CheckCircle2 className="h-7 w-7" />
           </div>
           <DialogTitle className="mt-2 text-2xl">
-            {completedAnalysisLabel.charAt(0).toUpperCase() + completedAnalysisLabel.slice(1)} analysis complete
+            {completedAnalysisLabel.charAt(0).toUpperCase() +
+              completedAnalysisLabel.slice(1)}{" "}
+            analysis complete
           </DialogTitle>
           <DialogDescription>
             Choose what you would like to do next.
@@ -52,7 +61,11 @@ export function AnalysisCompleteDialog({
             </Button>
           ))}
 
-          <Button variant="outline" onClick={onViewCurrentResult} className="w-full">
+          <Button
+            variant="outline"
+            onClick={onViewCurrentResult}
+            className="w-full"
+          >
             View Current Result
           </Button>
           <Button variant="ghost" onClick={onViewDashboard} className="w-full">
@@ -65,5 +78,5 @@ export function AnalysisCompleteDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

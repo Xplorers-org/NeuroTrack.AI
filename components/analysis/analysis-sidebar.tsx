@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   FileText,
   CheckCircle2,
+  ChartLine,
 } from "lucide-react";
 
 interface NavItem {
@@ -67,16 +68,16 @@ export function AnalysisSidebar({
       completed: completedSteps.includes("gait"),
     },
     {
-      id: "dashboard",
-      label: "Dashboard",
-      icon: LayoutDashboard,
-      href: "/analysis/dashboard",
-    },
-    {
       id: "results",
       label: "Results",
       icon: FileText,
       href: "/analysis/results",
+    },
+    {
+      id: "progress",
+      label: "Progress",
+      icon: ChartLine,
+      href: "/analysis/progress",
     },
   ];
 
