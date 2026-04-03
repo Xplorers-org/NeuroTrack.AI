@@ -606,7 +606,7 @@ export default function GaitAnalysisPage() {
                 </h4>
                 <div className="grid sm:grid-cols-2 gap-4 text-base">
                   <p className="text-muted-foreground dark:text-gray-400">
-                    Patient:
+                    Patient :
                   </p>
                   <p className="text-foreground dark:text-white font-semibold">
                     {patientData?.gender
@@ -619,14 +619,14 @@ export default function GaitAnalysisPage() {
                   </p>
 
                   <p className="text-muted-foreground dark:text-gray-400">
-                    Gender:
+                    Gender :
                   </p>
                   <p className="text-foreground dark:text-white font-semibold capitalize">
                     {patientData?.gender || "N/A"}
                   </p>
 
                   <p className="text-muted-foreground dark:text-gray-400">
-                    Video:
+                    Video :
                   </p>
                   <p className="text-foreground dark:text-white font-semibold break-all">
                     {selectedVideo
@@ -635,7 +635,7 @@ export default function GaitAnalysisPage() {
                   </p>
 
                   <p className="text-muted-foreground dark:text-gray-400">
-                    Analysis Type:
+                    Analysis Type :
                   </p>
                   <p className="text-foreground dark:text-white font-semibold">
                     Gait stability screening
@@ -732,7 +732,7 @@ export default function GaitAnalysisPage() {
 
                 <div className="bg-secondary dark:bg-[#0f1219] rounded-xl p-8 mt-8">
                   <div className="text-center">
-                    <p className="tracking-[0.2em] text-xs text-muted-foreground dark:text-gray-400 mb-2">
+                    <p className="tracking-[0.2em] text-xl text-muted-foreground dark:text-gray-400 mb-2">
                       GAIT STABILITY SCORE
                     </p>
                     <p className="text-sm text-muted-foreground dark:text-gray-400 mb-4">
