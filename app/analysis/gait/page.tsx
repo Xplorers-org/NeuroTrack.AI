@@ -490,11 +490,11 @@ export default function GaitAnalysisPage() {
                           : "bg-primary hover:bg-primary/90",
                       )}
                     >
-                      {isRecording ? (
-                        "Stop Recording"
-                      ) : (
-                        recordedBlob ? "Record Again" : "Start Recording"
-                      )}
+                      {isRecording
+                        ? "Stop Recording"
+                        : recordedBlob
+                          ? "Record Again"
+                          : "Start Recording"}
                     </Button>
                     {recordedBlob && !isRecording && (
                       <div className="mt-3 space-y-1">
@@ -709,7 +709,8 @@ export default function GaitAnalysisPage() {
                     Analysis Complete
                   </h4>
                   <p className="text-sm text-foreground dark:text-white">
-                    Patient : <span className="font-semibold text-primary">
+                    Patient :{" "}
+                    <span className="font-semibold text-primary">
                       {sessionStorage.getItem("patientData")
                         ? JSON.parse(
                             sessionStorage.getItem("patientData") || "{}",
@@ -718,7 +719,8 @@ export default function GaitAnalysisPage() {
                     </span>
                   </p>
                   <p className="text-sm text-foreground dark:text-white mt-2">
-                    Patient ID : <span className="font-semibold text-primary">
+                    Patient ID :{" "}
+                    <span className="font-semibold text-primary">
                       {sessionStorage.getItem("patientData")
                         ? JSON.parse(
                             sessionStorage.getItem("patientData") || "{}",
@@ -745,7 +747,9 @@ export default function GaitAnalysisPage() {
                       <span className={getSeverityTextColor(gaitScore || 0)}>
                         {gaitScoreText}
                       </span>
-                      <span className="text-4xl text-muted-foreground">/100</span>
+                      <span className="text-4xl text-muted-foreground">
+                        /100
+                      </span>
                     </p>
                     <p className="mt-4 text-3xl font-bold text-foreground dark:text-white uppercase">
                       {gaitSeverity}
@@ -770,20 +774,25 @@ export default function GaitAnalysisPage() {
                     </div>
                   </div>
 
-                  <div className={`mt-6 ${getSeverityBgColor(gaitScore || 0)} rounded-lg p-4`}>
+                  <div
+                    className={`mt-6 ${getSeverityBgColor(gaitScore || 0)} rounded-lg p-4`}
+                  >
                     <p className="text-sm text-muted-foreground dark:text-gray-400">
                       Severity Level:
                     </p>
-                    <p className={`text-xl font-semibold ${getSeverityTextColor(gaitScore || 0)}`}>
+                    <p
+                      className={`text-xl font-semibold ${getSeverityTextColor(gaitScore || 0)}`}
+                    >
                       {gaitSeverity}
                     </p>
                   </div>
 
                   <p className="text-xs text-muted-foreground dark:text-gray-400 mt-4">
-                    <span className="font-semibold">Note:</span> Higher gait score indicates better gait stability.
-                    Important: This is a screening tool based on gait video
-                    analysis only. Please consult a healthcare professional for
-                    proper diagnosis and treatment.
+                    <span className="font-semibold">Note:</span> Higher gait
+                    score indicates better gait stability. Important: This is a
+                    screening tool based on gait video analysis only. Please
+                    consult a healthcare professional for proper diagnosis and
+                    treatment.
                   </p>
                 </div>
 
@@ -801,47 +810,79 @@ export default function GaitAnalysisPage() {
                   <ul className="space-y-3 text-sm text-muted-foreground dark:text-gray-300">
                     <li className="flex justify-between items-start">
                       <div>
-                        <span className="font-semibold text-foreground dark:text-white">Stride Time Variability:</span>
-                        <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">Measures the consistency of walking rhythm</p>
+                        <span className="font-semibold text-foreground dark:text-white">
+                          Stride Time Variability:
+                        </span>
+                        <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
+                          Measures the consistency of walking rhythm
+                        </p>
                       </div>
                       <span className="font-semibold text-foreground dark:text-white ml-4">
-                        {gaitResult?.stride_variability !== undefined ? `${gaitResult.stride_variability.toFixed(2)}%` : "N/A"}
+                        {gaitResult?.stride_variability !== undefined
+                          ? `${gaitResult.stride_variability.toFixed(2)}%`
+                          : "N/A"}
                       </span>
                     </li>
                     <li className="flex justify-between items-start">
                       <div>
-                        <span className="font-semibold text-foreground dark:text-white">Cadence:</span>
-                        <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">Number of steps per minute</p>
+                        <span className="font-semibold text-foreground dark:text-white">
+                          Cadence:
+                        </span>
+                        <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
+                          Number of steps per minute
+                        </p>
                       </div>
                       <span className="font-semibold text-foreground dark:text-white ml-4">
-                        {gaitResult?.cadence !== undefined ? `${gaitResult.cadence.toFixed(2)} steps/min` : "N/A"}
+                        {gaitResult?.cadence !== undefined
+                          ? `${gaitResult.cadence.toFixed(2)} steps/min`
+                          : "N/A"}
                       </span>
                     </li>
                     <li className="flex justify-between items-start">
                       <div>
-                        <span className="font-semibold text-foreground dark:text-white">Gait Symmetry:</span>
-                        <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">Balance and uniformity of movement between left and right</p>
+                        <span className="font-semibold text-foreground dark:text-white">
+                          Gait Symmetry:
+                        </span>
+                        <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
+                          Balance and uniformity of movement between left and
+                          right
+                        </p>
                       </div>
                       <span className="font-semibold text-foreground dark:text-white ml-4">
-                        {gaitResult?.gait_symmetry !== undefined ? `${(gaitResult.gait_symmetry * 100).toFixed(2)}%` : "N/A"}
+                        {gaitResult?.gait_symmetry !== undefined
+                          ? `${(gaitResult.gait_symmetry * 100).toFixed(2)}%`
+                          : "N/A"}
                       </span>
                     </li>
                     <li className="flex justify-between items-start">
                       <div>
-                        <span className="font-semibold text-foreground dark:text-white">Overall Arm Swing:</span>
-                        <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">Amplitude and consistency of arm movement during walking</p>
+                        <span className="font-semibold text-foreground dark:text-white">
+                          Overall Arm Swing:
+                        </span>
+                        <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
+                          Amplitude and consistency of arm movement during
+                          walking
+                        </p>
                       </div>
                       <span className="font-semibold text-foreground dark:text-white ml-4">
-                        {gaitResult?.overall_arm_swing !== undefined ? `${gaitResult.overall_arm_swing.toFixed(2)}` : "N/A"}
+                        {gaitResult?.overall_arm_swing !== undefined
+                          ? `${gaitResult.overall_arm_swing.toFixed(2)}`
+                          : "N/A"}
                       </span>
                     </li>
                     <li className="flex justify-between items-start">
                       <div>
-                        <span className="font-semibold text-foreground dark:text-white">Arm Swing Asymmetry:</span>
-                        <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">Differences in arm movement between sides</p>
+                        <span className="font-semibold text-foreground dark:text-white">
+                          Arm Swing Asymmetry:
+                        </span>
+                        <p className="text-xs text-muted-foreground dark:text-gray-400 mt-1">
+                          Differences in arm movement between sides
+                        </p>
                       </div>
                       <span className="font-semibold text-foreground dark:text-white ml-4">
-                        {gaitResult?.arm_swing_asymmetry !== undefined ? `${gaitResult.arm_swing_asymmetry.toFixed(2)}%` : "N/A"}
+                        {gaitResult?.arm_swing_asymmetry !== undefined
+                          ? `${gaitResult.arm_swing_asymmetry.toFixed(2)}%`
+                          : "N/A"}
                       </span>
                     </li>
                   </ul>
@@ -855,7 +896,8 @@ export default function GaitAnalysisPage() {
                         <div className="w-3 h-3 rounded-full bg-green-500 mt-1.5 shrink-0" />
                         <div>
                           <p className="font-semibold text-foreground dark:text-white">
-                            86-100: Normal gait (Stable) - Stable and healthy walking pattern
+                            86-100: Normal gait (Stable) - Stable and healthy
+                            walking pattern
                           </p>
                         </div>
                       </div>
@@ -864,7 +906,8 @@ export default function GaitAnalysisPage() {
                         <div className="w-3 h-3 rounded-full bg-yellow-500 mt-1.5 shrink-0" />
                         <div>
                           <p className="font-semibold text-foreground dark:text-white">
-                            71-85: Mild impairment - Slight changes in gait pattern observed
+                            71-85: Mild impairment - Slight changes in gait
+                            pattern observed
                           </p>
                         </div>
                       </div>
@@ -873,7 +916,8 @@ export default function GaitAnalysisPage() {
                         <div className="w-3 h-3 rounded-full bg-orange-500 mt-1.5 shrink-0" />
                         <div>
                           <p className="font-semibold text-foreground dark:text-white">
-                            56-70: Moderate impairment - Noticeable gait irregularities present
+                            56-70: Moderate impairment - Noticeable gait
+                            irregularities present
                           </p>
                         </div>
                       </div>
@@ -882,7 +926,8 @@ export default function GaitAnalysisPage() {
                         <div className="w-3 h-3 rounded-full bg-red-500 mt-1.5 shrink-0" />
                         <div>
                           <p className="font-semibold text-foreground dark:text-white">
-                            0-55: Severe gait instability - Significant gait disturbance may be present
+                            0-55: Severe gait instability - Significant gait
+                            disturbance may be present
                           </p>
                         </div>
                       </div>
@@ -929,7 +974,7 @@ export default function GaitAnalysisPage() {
           setResultActionsOpen(false);
           router.push("/analysis/results");
         }}
-        onViewDashboard={() => closeDialogAndNavigate("/analysis/dashboard")}
+        onViewDashboard={() => closeDialogAndNavigate("/analysis/progress")}
       />
     </div>
   );

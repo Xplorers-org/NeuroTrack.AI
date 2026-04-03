@@ -140,14 +140,10 @@ export default function DrawingAnalysisPage() {
   };
 
   const getSeverityDescription = (severity: string) => {
-    if (severity === "Normal Pattern")
-      return "No motor impairment.";
-    if (severity === "Mild")
-      return "Slight motor irregularities observed.";
-    if (severity === "Moderate")
-      return "Noticeable motor impairment.";
-    if (severity === "High")
-      return "Significant motor impairment.";
+    if (severity === "Normal Pattern") return "No motor impairment.";
+    if (severity === "Mild") return "Slight motor irregularities observed.";
+    if (severity === "Moderate") return "Noticeable motor impairment.";
+    if (severity === "High") return "Significant motor impairment.";
     return "Strong Parkinsonian motor patterns observed.";
   };
 
@@ -592,13 +588,22 @@ export default function DrawingAnalysisPage() {
                     Analysis Complete
                   </h4>
                   <p className="text-sm text-foreground dark:text-white">
-                    Patient : <span className="font-semibold text-primary">{patientData?.fullName || "N/A"}</span>
+                    Patient :{" "}
+                    <span className="font-semibold text-primary">
+                      {patientData?.fullName || "N/A"}
+                    </span>
                   </p>
                   <p className="text-sm text-foreground dark:text-white">
-                    Patient Id : <span className="font-semibold text-primary">{patientData?.patientId || "N/A"}</span>
+                    Patient Id :{" "}
+                    <span className="font-semibold text-primary">
+                      {patientData?.patientId || "N/A"}
+                    </span>
                   </p>
                   <p className="text-sm text-foreground dark:text-white">
-                    Drawing Type : <span className="font-semibold text-primary">{activeResult?.drawing_type || previewLabel}</span>
+                    Drawing Type :{" "}
+                    <span className="font-semibold text-primary">
+                      {activeResult?.drawing_type || previewLabel}
+                    </span>
                   </p>
                 </div>
 
@@ -614,7 +619,9 @@ export default function DrawingAnalysisPage() {
                       <span className={getSeverityTextColor(activeScore || 0)}>
                         {activeScoreText}
                       </span>
-                      <span className="text-4xl text-muted-foreground">/100</span>
+                      <span className="text-4xl text-muted-foreground">
+                        /100
+                      </span>
                     </p>
                     <p className="mt-4 text-3xl font-bold text-foreground dark:text-white uppercase">
                       {activeSeverity}
@@ -640,11 +647,15 @@ export default function DrawingAnalysisPage() {
                     </div>
                   </div>
 
-                  <div className={`mt-6 ${getSeverityBgColor(activeScore || 0)} rounded-lg p-4`}>
+                  <div
+                    className={`mt-6 ${getSeverityBgColor(activeScore || 0)} rounded-lg p-4`}
+                  >
                     <p className="text-sm text-muted-foreground dark:text-gray-400">
                       Severity Level:
                     </p>
-                    <p className={`text-xl font-semibold ${getSeverityTextColor(activeScore || 0)}`}>
+                    <p
+                      className={`text-xl font-semibold ${getSeverityTextColor(activeScore || 0)}`}
+                    >
                       {activeSeverity}
                     </p>
                   </div>
@@ -654,70 +665,72 @@ export default function DrawingAnalysisPage() {
                     analysis only. Please consult a healthcare professional for
                     proper diagnosis and treatment.
                   </p>
-                
 
-                <div className="mt-8 pt-8 border-t border-border dark:border-white/10">
-                  <h4 className="text-2xl font-bold text-foreground dark:text-white mb-1">
-                    Understanding Your Drawing Analysis
-                  </h4>
-                  <p className="text-sm text-muted-foreground dark:text-gray-400 mb-6">
-                    Motor Impairment Assessment (Spiral & Wave Pattern Analysis)
-                  </p>
+                  <div className="mt-8 pt-8 border-t border-border dark:border-white/10">
+                    <h4 className="text-2xl font-bold text-foreground dark:text-white mb-1">
+                      Understanding Your Drawing Analysis
+                    </h4>
+                    <p className="text-sm text-muted-foreground dark:text-gray-400 mb-6">
+                      Motor Impairment Assessment (Spiral & Wave Pattern
+                      Analysis)
+                    </p>
 
-                  <h5 className="text-lg font-semibold text-foreground dark:text-white mb-4">
-                    What is Drawing Analysis?
-                  </h5>
-                  <p className="text-sm text-muted-foreground dark:text-gray-300 mb-6">
-                    Drawing analysis helps screen fine motor control by measuring tremor, pressure irregularity, and movement smoothness in spiral or wave patterns.
-                  </p>
+                    <h5 className="text-lg font-semibold text-foreground dark:text-white mb-4">
+                      What is Drawing Analysis?
+                    </h5>
+                    <p className="text-sm text-muted-foreground dark:text-gray-300 mb-6">
+                      Drawing analysis helps screen fine motor control by
+                      measuring tremor, pressure irregularity, and movement
+                      smoothness in spiral or wave patterns.
+                    </p>
 
-                  <div className="space-y-3">
-                    <div className="flex items-start gap-4">
-                      <div className="w-3 h-3 rounded-full bg-green-500 mt-1.5 shrink-0" />
-                      <div>
-                        <p className="font-semibold text-foreground dark:text-white">
-                          0-38: Normal Pattern - No motor impairment
-                        </p>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-4">
+                        <div className="w-3 h-3 rounded-full bg-green-500 mt-1.5 shrink-0" />
+                        <div>
+                          <p className="font-semibold text-foreground dark:text-white">
+                            0-38: Normal Pattern - No motor impairment
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-start gap-4">
-                      <div className="w-3 h-3 rounded-full bg-yellow-500 mt-1.5 shrink-0" />
-                      <div>
-                        <p className="font-semibold text-foreground dark:text-white">
-                          38-55: Mild - Slight motor irregularities
-                        </p>
+                      <div className="flex items-start gap-4">
+                        <div className="w-3 h-3 rounded-full bg-yellow-500 mt-1.5 shrink-0" />
+                        <div>
+                          <p className="font-semibold text-foreground dark:text-white">
+                            38-55: Mild - Slight motor irregularities
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-start gap-4">
-                      <div className="w-3 h-3 rounded-full bg-orange-500 mt-1.5 shrink-0" />
-                      <div>
-                        <p className="font-semibold text-foreground dark:text-white">
-                          55-70: Moderate - Noticeable motor impairment
-                        </p>
+                      <div className="flex items-start gap-4">
+                        <div className="w-3 h-3 rounded-full bg-orange-500 mt-1.5 shrink-0" />
+                        <div>
+                          <p className="font-semibold text-foreground dark:text-white">
+                            55-70: Moderate - Noticeable motor impairment
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-start gap-4">
-                      <div className="w-3 h-3 rounded-full bg-orange-600 mt-1.5 shrink-0" />
-                      <div>
-                        <p className="font-semibold text-foreground dark:text-white">
-                          70-85: High - Significant motor impairment
-                        </p>
+                      <div className="flex items-start gap-4">
+                        <div className="w-3 h-3 rounded-full bg-orange-600 mt-1.5 shrink-0" />
+                        <div>
+                          <p className="font-semibold text-foreground dark:text-white">
+                            70-85: High - Significant motor impairment
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-start gap-4">
-                      <div className="w-3 h-3 rounded-full bg-red-500 mt-1.5 shrink-0" />
-                      <div>
-                        <p className="font-semibold text-foreground dark:text-white">
-                          85-100: Severe - Strong Parkinsonian motor patterns
-                        </p>
+                      <div className="flex items-start gap-4">
+                        <div className="w-3 h-3 rounded-full bg-red-500 mt-1.5 shrink-0" />
+                        <div>
+                          <p className="font-semibold text-foreground dark:text-white">
+                            85-100: Severe - Strong Parkinsonian motor patterns
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
                 </div>
               </div>
 
@@ -759,7 +772,7 @@ export default function DrawingAnalysisPage() {
           setResultActionsOpen(false);
           router.push("/analysis/results");
         }}
-        onViewDashboard={() => closeDialogAndNavigate("/analysis/dashboard")}
+        onViewDashboard={() => closeDialogAndNavigate("/analysis/progress")}
       />
     </div>
   );
