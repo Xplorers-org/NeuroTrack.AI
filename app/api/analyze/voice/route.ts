@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { saveVoiceResult, countPreviousVoiceTests, getPatientByPid } from "@/lib/db";
-import { supabase } from "@w";
 
-const VOICE_API_URL = process.env.VOICE_API_URL!;
+const VOICE_API_URL = process.env.VOICE_API_URL;
 
 export async function POST(req: NextRequest) {
+  if (!VOICE_API_URL) {
+    return NextResponse.json(
+      { error: "VOICE_API_URL is not configured." },
+      { status: 500 }
+    );
+  }
+
   const formData = await req.formData();
 
   const session_id = formData.get("session_id") as string;
@@ -16,6 +22,14 @@ export async function POST(req: NextRequest) {
   if (!session_id || !patient_id || !age || !sex || !file) {
     return NextResponse.json(
       { error: "session_id, patient_id, age, sex, and audio_file are required." },
+      { status: 400 }
+    );
+  }
+
+  // Validate session_id is a valid UUID
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(session_id)) {
+    return NextResponse.json(
+      { error: "Invalid session_id format." },
       { status: 400 }
     );
   }
@@ -49,7 +63,8 @@ export async function POST(req: NextRequest) {
   let apiResult: { prediction: number };
   const t0 = Date.now();
   try {
-    const response = await fetch(`${VOICE_API_URL}/analyze/voice`, {
+    const baseUrl = VOICE_API_URL.replace(/\/+$/, "");
+    const response = await fetch(`${baseUrl}/analyze/voice`, {
       method: "POST",
       body: upstream,
     });
@@ -58,14 +73,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Voice API: ${detail}` }, { status: response.status });
     }
     apiResult = await response.json();  // { "prediction": 15.842... }
-  } catch {
-    return NextResponse.json({ error: "Could not reach Voice API." }, { status: 502 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown network error";
+    return NextResponse.json(
+      { error: `Could not reach Voice API. ${message}` },
+      { status: 502 }
+    );
   }
   const processing_time_ms = Date.now() - t0;
 
   // ── 3. Save to Supabase ────────────────────────────────────────────────────
   let saved = false;
   try {
+    console.log("[voice] Saving result with session_id:", session_id);
     await saveVoiceResult(session_id, {
       age:               parseInt(age),
       sex,
@@ -74,6 +94,7 @@ export async function POST(req: NextRequest) {
       processing_time_ms,
     });
     saved = true;
+    console.log("[voice] Result saved successfully");
   } catch (err) {
     console.error("[voice] Supabase save failed:", err);
   }

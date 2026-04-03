@@ -67,6 +67,12 @@ export function AnalysisSidebar({
       completed: completedSteps.includes("gait"),
     },
     {
+      id: "dashboard",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+      href: "/analysis/dashboard",
+    },
+    {
       id: "results",
       label: "Results",
       icon: FileText,

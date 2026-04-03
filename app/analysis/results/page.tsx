@@ -1,300 +1,455 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnalysisSidebar } from "@/components/analysis/analysis-sidebar";
 import { Button } from "@/components/ui/button";
-import { Download, Share2, Printer, CheckCircle2, Activity, Brain, TrendingUp, Loader2, Play } from "lucide-react";
-import { PatientData } from "@/components/analysis/patient-info-form";
-import { toast } from "sonner";
+import { Database, Download, Eye, FileText, RefreshCw } from "lucide-react";
+
+type AnalysisHistoryItem = {
+  id: string;
+  type: "voice" | "gait" | "drawing";
+  source: string;
+  fileName: string;
+  fileSize: string;
+  score?: number;
+  severity?: string;
+  submittedAt: string;
+};
+
+type PatientSummary = {
+  fullName?: string;
+  patientId?: string;
+  age?: string | number;
+  gender?: string;
+};
+
+type DbHistoryRow = Record<string, unknown>;
+
+const SUMMARY_CARDS: Array<{
+  label: string;
+  key: AnalysisHistoryItem["type"];
+  color: string;
+  route: string;
+}> = [
+  { label: "Voice Analysis", key: "voice", color: "text-cyan-500", route: "/analysis/voice" },
+  { label: "Gait Analysis", key: "gait", color: "text-amber-500", route: "/analysis/gait" },
+  { label: "Drawing Analysis", key: "drawing", color: "text-emerald-500", route: "/analysis/drawing" },
+];
+
+const getStringValue = (value: unknown, fallback = "") => {
+  if (typeof value === "string" && value.trim().length > 0) {
+    return value;
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return fallback;
+};
+
+const getNumberValue = (value: unknown) => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  return undefined;
+};
+
+const getDateValue = (row: DbHistoryRow) => {
+  const candidate =
+    getStringValue(row.submittedAt) ||
+    getStringValue(row.submitted_at) ||
+    getStringValue(row.created_at) ||
+    getStringValue(row.test_time) ||
+    new Date().toISOString();
+
+  const parsed = new Date(candidate);
+  return Number.isNaN(parsed.getTime()) ? new Date(0).toISOString() : parsed.toISOString();
+};
+
+const inferAnalysisType = (row: DbHistoryRow): AnalysisHistoryItem["type"] | null => {
+  const explicitType = getStringValue(row.type || row.analysis_type).toLowerCase();
+  if (explicitType === "voice" || explicitType === "gait" || explicitType === "drawing") {
+    return explicitType;
+  }
+
+  if (
+    row.voice_prediction !== undefined ||
+    row.prediction !== undefined ||
+    row.test_count !== undefined
+  ) {
+    return "voice";
+  }
+
+  if (row.gait_score !== undefined || row.gait_stability_score !== undefined) {
+    return "gait";
+  }
+
+  if (row.motor_impairment_score !== undefined || row.drawing_type !== undefined) {
+    return "drawing";
+  }
+
+  return null;
+};
+
+const toHistoryItem = (row: DbHistoryRow): AnalysisHistoryItem | null => {
+  const type = inferAnalysisType(row);
+  if (!type) {
+    return null;
+  }
+
+  const score =
+    getNumberValue(row.score) ??
+    getNumberValue(row.voice_prediction) ??
+    getNumberValue(row.prediction) ??
+    getNumberValue(row.gait_score) ??
+    getNumberValue(row.gait_stability_score) ??
+    getNumberValue(row.motor_impairment_score);
+
+  const severity =
+    getStringValue(row.severity) ||
+    getStringValue(row.severity_level) ||
+    getStringValue(row.label) ||
+    getStringValue(row.interpretation) ||
+    getStringValue(row.analysis_summary);
+
+  const source =
+    getStringValue(row.source) ||
+    getStringValue(row.analysis_source) ||
+    getStringValue(row.drawing_type) ||
+    (type === "voice" ? "recording" : type === "gait" ? "video" : "drawing");
+
+  const fileName =
+    getStringValue(row.fileName) ||
+    getStringValue(row.file_name) ||
+    getStringValue(row.audio_file_name) ||
+    getStringValue(row.video_file_name) ||
+    getStringValue(row.drawing_file_name) ||
+    getStringValue(row.filename) ||
+    `${type}-analysis`;
+
+  const fileSize =
+    getStringValue(row.fileSize) ||
+    getStringValue(row.file_size) ||
+    getStringValue(row.audio_file_size) ||
+    getStringValue(row.video_file_size) ||
+    getStringValue(row.drawing_file_size) ||
+    "N/A";
+
+  return {
+    id: getStringValue(row.id, `${type}-${getDateValue(row)}`),
+    type,
+    source,
+    fileName,
+    fileSize,
+    score,
+    severity,
+    submittedAt: getDateValue(row),
+  };
+};
 
 export default function ResultsPage() {
   const router = useRouter();
-  const [patientData, setPatientData] = useState<PatientData | null>(null);
-  const [voiceResult, setVoiceResult] = useState<any>(null);
-  const [gaitResult, setGaitResult] = useState<any>(null);
-  const [drawingResult, setDrawingResult] = useState<any>(null);
-  const [localVideoUrl, setLocalVideoUrl] = useState<string | null>(null);
-  const [isDownloading, setIsDownloading] = useState(false);
-  
-  const completedSteps = ["patient-info", "voice", "drawing", "gait"];
+  const [patientData, setPatientData] = useState<PatientSummary | null>(null);
+  const [history, setHistory] = useState<AnalysisHistoryItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const storedData = sessionStorage.getItem("patientData");
-    if (storedData) setPatientData(JSON.parse(storedData));
+  const sortedHistory = useMemo(
+    () => [...history].sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()),
+    [history],
+  );
 
-    const vResult = sessionStorage.getItem("voiceResult");
-    if (vResult) setVoiceResult(JSON.parse(vResult));
+  const latestSummary = useMemo(() => {
+    const latestByType: Partial<Record<AnalysisHistoryItem["type"], AnalysisHistoryItem>> = {};
 
-    const gResult = sessionStorage.getItem("gaitResult");
-    if (gResult) setGaitResult(JSON.parse(gResult));
+    for (const item of sortedHistory) {
+      if (!latestByType[item.type]) {
+        latestByType[item.type] = item;
+      }
+    }
 
-    const dResult = sessionStorage.getItem("drawingResult");
-    if (dResult) setDrawingResult(JSON.parse(dResult));
+    return latestByType;
+  }, [sortedHistory]);
 
-    return () => {
-      if (localVideoUrl) URL.revokeObjectURL(localVideoUrl);
-    };
-  }, [localVideoUrl]);
+  const latestSubmittedAt = useMemo(() => {
+    if (sortedHistory.length === 0) {
+      return null;
+    }
 
-  const handleDownloadVideo = async () => {
-    if (!gaitResult?.annotated_video_url) return;
-    
-    setIsDownloading(true);
+    return new Date(sortedHistory[0].submittedAt).toLocaleString();
+  }, [sortedHistory]);
+
+  const loadHistory = async () => {
+    const storedData = typeof window === "undefined" ? null : sessionStorage.getItem("patientData");
+    const parsedPatient = storedData ? (JSON.parse(storedData) as PatientSummary) : null;
+    setPatientData(parsedPatient);
+
+    if (!parsedPatient?.patientId) {
+      setError("Patient ID is missing. Register or load a patient first.");
+      setHistory([]);
+      setIsLoading(false);
+      return;
+    }
+
+    setError(null);
+
     try {
-      const response = await fetch(gaitResult.annotated_video_url);
-      if (!response.ok) throw new Error("Could not download video");
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      setLocalVideoUrl(url);
-      toast.success("Video ready for playback");
-    } catch (error) {
-      console.error("Video download failed:", error);
-      toast.error("Failed to load video preview");
+      const res = await fetch(`/api/patients/${encodeURIComponent(parsedPatient.patientId)}/history`);
+
+      if (res.status === 404) {
+        setHistory([]);
+        return;
+      }
+
+      if (!res.ok) {
+        let message = "Failed to load database history.";
+        try {
+          const data = await res.json();
+          message = typeof data?.error === "string" ? data.error : message;
+        } catch {
+          const text = await res.text();
+          if (text) message = text;
+        }
+        throw new Error(message);
+      }
+
+      const rows: DbHistoryRow[] = await res.json();
+      const normalized = rows
+        .map((row) => toHistoryItem(row))
+        .filter((item): item is AnalysisHistoryItem => Boolean(item));
+
+      setHistory(normalized);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Unable to load results.");
+      setHistory([]);
     } finally {
-      setIsDownloading(false);
+      setIsLoading(false);
+      setIsRefreshing(false);
     }
   };
 
-  const getProgress = () => {
-    return { current: 4, total: 4 };
+  useEffect(() => {
+    void loadHistory();
+  }, []);
+
+  const getProgress = () => ({ current: 4, total: 4 });
+
+  const downloadFile = (fileName: string, content: string, mimeType: string) => {
+    const blob = new Blob([content], { type: mimeType });
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(objectUrl);
   };
 
-  // Safe formatting functions
-  const formatVoiceScore = () => {
-    if (!voiceResult) return "N/A";
-    return Number(voiceResult.prediction)?.toFixed(2) || "N/A";
+  const handleDownloadJson = () => {
+    const payload = {
+      patient: patientData,
+      generatedAt: new Date().toISOString(),
+      summary: latestSummary,
+      history: sortedHistory,
+    };
+
+    downloadFile("analysis-history-summary.json", JSON.stringify(payload, null, 2), "application/json");
   };
 
-  const formatGaitScore = () => {
-    if (!gaitResult) return "N/A";
-    return Number(gaitResult.gait_score)?.toFixed(2) || "N/A";
+  const handleDownloadCsv = () => {
+    const headers = ["Type", "Source", "File Name", "File Size", "Score", "Severity", "Submitted At"];
+    const rows = sortedHistory.map((item) => [
+      item.type,
+      item.source,
+      item.fileName,
+      item.fileSize,
+      String(item.score ?? "N/A"),
+      item.severity ?? "N/A",
+      new Date(item.submittedAt).toLocaleString(),
+    ]);
+
+    const csvData = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${String(cell).replaceAll("\"", "\"\"")}"`).join(","))
+      .join("\n");
+
+    downloadFile("analysis-history-summary.csv", csvData, "text/csv;charset=utf-8;");
   };
 
-  const formatDrawingScore = () => {
-    if (!drawingResult) return "N/A";
-    const spiral = Number(drawingResult.spiral?.sigmoid_probability || 0);
-    const wave = Number(drawingResult.wave?.sigmoid_probability || 0);
-    return (((spiral + wave) / 2) * 100).toFixed(1) + "%";
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    void loadHistory();
   };
 
   return (
     <div className="flex min-h-screen bg-background dark:bg-[#0a0e17]">
       <AnalysisSidebar
         currentStep="results"
-        completedSteps={completedSteps}
+        completedSteps={["patient-info", "voice", "gait", "drawing"]}
         progress={getProgress()}
       />
 
       <main className="flex-1 ml-60">
-        <div className="max-w-4xl mx-auto px-8 py-12">
-          {/* Header code stays the same... */}
-          <div className="flex items-center justify-between mb-8">
+        <div className="max-w-5xl mx-auto px-8 py-12">
+          <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground dark:text-white">
-                Analysis Results
-              </h1>
-              <p className="text-muted-foreground dark:text-gray-400 mt-2">
-                Comprehensive neurological assessment report
-              </p>
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground dark:text-white">Results</h1>
+              <p className="text-muted-foreground dark:text-gray-400 mt-2">Combined summary and database history for all 3 analyses.</p>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="icon" className="border-border dark:border-white/10">
-                <Share2 className="w-4 h-4" />
-              </Button>
-              <Button variant="outline" size="icon" className="border-border dark:border-white/10">
-                <Printer className="w-4 h-4" />
-              </Button>
-              <Button variant="outline" size="icon" className="border-border dark:border-white/10">
-                <Download className="w-4 h-4" />
-              </Button>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground dark:text-gray-400">
+              <Database className="w-4 h-4 text-primary" />
+              <span>Synced from database</span>
+              {latestSubmittedAt && <span className="hidden md:inline">• Latest update {latestSubmittedAt}</span>}
             </div>
           </div>
 
-          {/* Overall Score Banner */}
-          <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-8 mb-6 text-center">
-            <p className="text-muted-foreground dark:text-gray-400 mb-2">Overall Assessment Status</p>
-            <div className="text-4xl font-bold text-primary mb-2">Analysis Complete</div>
-            <p className="text-sm text-muted-foreground dark:text-gray-400">
-              Review individual component scores below
-            </p>
-          </div>
+          {error && (
+            <div className="bg-amber-500/10 dark:bg-amber-900/20 border border-amber-500/30 dark:border-amber-500/20 rounded-xl px-5 py-4 mb-6">
+              <p className="text-sm text-amber-700 dark:text-amber-400">{error}</p>
+            </div>
+          )}
 
-          {/* Patient Summary */}
-          <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-6 mb-6">
-            <h3 className="text-lg font-semibold text-foreground dark:text-white mb-4">
-              Patient Summary
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-secondary dark:bg-[#0f1219] rounded-xl p-4">
-                <p className="text-sm text-muted-foreground dark:text-gray-400">Name</p>
-                <p className="font-medium text-foreground dark:text-white">
-                  {patientData?.fullName || "N/A"}
-                </p>
-              </div>
-              <div className="bg-secondary dark:bg-[#0f1219] rounded-xl p-4">
-                <p className="text-sm text-muted-foreground dark:text-gray-400">Patient ID</p>
-                <p className="font-medium text-foreground dark:text-white">
-                  {patientData?.patientId || "N/A"}
-                </p>
-              </div>
-              <div className="bg-secondary dark:bg-[#0f1219] rounded-xl p-4">
-                <p className="text-sm text-muted-foreground dark:text-gray-400">Gender</p>
-                <p className="font-medium text-foreground dark:text-white capitalize">
-                  {patientData?.gender || "N/A"}
-                </p>
-              </div>
-              <div className="bg-secondary dark:bg-[#0f1219] rounded-xl p-4">
-                <p className="text-sm text-muted-foreground dark:text-gray-400">Age</p>
-                <p className="font-medium text-foreground dark:text-white">
-                  {patientData?.age || "N/A"}
-                </p>
+          {isLoading ? (
+            <div className="space-y-6">
+              <div className="h-36 rounded-2xl border border-border dark:border-white/10 bg-card dark:bg-[#161b26] animate-pulse" />
+              <div className="grid md:grid-cols-3 gap-4">
+                <div className="h-56 rounded-xl border border-border dark:border-white/10 bg-card dark:bg-[#161b26] animate-pulse" />
+                <div className="h-56 rounded-xl border border-border dark:border-white/10 bg-card dark:bg-[#161b26] animate-pulse" />
+                <div className="h-56 rounded-xl border border-border dark:border-white/10 bg-card dark:bg-[#161b26] animate-pulse" />
               </div>
             </div>
-          </div>
-
-          {/* Status Cards */}
-          <div className="grid md:grid-cols-3 gap-4 mb-8">
-            <div className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-5">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Activity className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <p className="font-medium text-foreground dark:text-white">Voice</p>
-                  <p className="text-xs text-green-500">Completed</p>
-                </div>
-              </div>
-              <div className="h-1 bg-green-500 rounded-full" />
-            </div>
-
-            <div className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-5">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Brain className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <p className="font-medium text-foreground dark:text-white">Drawing</p>
-                  <p className="text-xs text-green-500">Completed</p>
+          ) : (
+            <>
+              <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-6 mb-6">
+                <h3 className="text-lg font-semibold text-foreground dark:text-white mb-4">Patient Summary</h3>
+                <div className="grid md:grid-cols-4 gap-4 text-sm">
+                  <div className="bg-secondary dark:bg-[#0f1219] rounded-lg p-4">
+                    <p className="text-muted-foreground dark:text-gray-400">Name</p>
+                    <p className="font-semibold text-foreground dark:text-white">{patientData?.fullName || "N/A"}</p>
+                  </div>
+                  <div className="bg-secondary dark:bg-[#0f1219] rounded-lg p-4">
+                    <p className="text-muted-foreground dark:text-gray-400">Patient ID</p>
+                    <p className="font-semibold text-foreground dark:text-white">{patientData?.patientId || "N/A"}</p>
+                  </div>
+                  <div className="bg-secondary dark:bg-[#0f1219] rounded-lg p-4">
+                    <p className="text-muted-foreground dark:text-gray-400">Age</p>
+                    <p className="font-semibold text-foreground dark:text-white">{patientData?.age || "N/A"}</p>
+                  </div>
+                  <div className="bg-secondary dark:bg-[#0f1219] rounded-lg p-4">
+                    <p className="text-muted-foreground dark:text-gray-400">Gender</p>
+                    <p className="font-semibold text-foreground dark:text-white capitalize">{patientData?.gender || "N/A"}</p>
+                  </div>
                 </div>
               </div>
-              <div className="h-1 bg-green-500 rounded-full" />
-            </div>
 
-            <div className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-5">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-primary" />
-                </div>
-                <div>
-                  <p className="font-medium text-foreground dark:text-white">Gait</p>
-                  <p className="text-xs text-green-500">Completed</p>
-                </div>
-              </div>
-              <div className="h-1 bg-green-500 rounded-full" />
-            </div>
-          </div>
+              <div className="grid md:grid-cols-3 gap-4 mb-6">
+                {SUMMARY_CARDS.map((card) => {
+                  const result = latestSummary[card.key];
+                  const hasScore = typeof result?.score === "number";
 
-          {/* Individual Results Details */}
-          <div className="space-y-4 mb-8">
-            <div className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-foreground dark:text-white">Voice Analysis (UPDRS)</h3>
-                <span className="text-2xl font-bold text-green-500">{formatVoiceScore()}</span>
-              </div>
-              <p className="text-sm text-muted-foreground dark:text-gray-400 mt-3">
-                Predicted UPDRS score based on voice features.
-              </p>
-            </div>
-
-            <div className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-foreground dark:text-white">Gait Analysis</h3>
-                <span className="text-2xl font-bold text-yellow-500">{formatGaitScore()}</span>
-              </div>
-              <p className="text-sm text-muted-foreground dark:text-gray-400 mt-3 mb-4">
-                Severity score based on pose estimation variance.
-              </p>
-              
-              {gaitResult?.annotated_video_url && (
-                <div className="mt-4 border-t border-border dark:border-white/10 pt-4">
-                  <h4 className="text-sm font-medium text-foreground dark:text-white mb-3">Pose Estimation (Annotated)</h4>
-                  
-                  {!localVideoUrl ? (
-                    <Button 
-                      onClick={handleDownloadVideo} 
-                      disabled={isDownloading}
-                      variant="outline"
-                      className="w-full max-w-md h-32 flex flex-col gap-2 rounded-xl border-dashed border-2 hover:border-primary/50 hover:bg-primary/5 transition-all"
-                    >
-                      {isDownloading ? (
-                        <>
-                          <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                          <span className="font-medium">Buffering Video...</span>
-                        </>
-                      ) : (
-                        <>
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-1">
-                            <Play className="w-5 h-5 text-primary fill-primary" />
-                          </div>
-                          <span className="font-medium">Download & Play Annotated Video</span>
-                          <span className="text-xs text-muted-foreground">Load locally for smooth frame-by-frame review</span>
-                        </>
-                      )}
-                    </Button>
-                  ) : (
-                    <div className="relative w-full max-w-md group">
-                      <video
-                        controls
-                        playsInline
-                        autoPlay
-                        src={localVideoUrl}
-                        className="w-full rounded-lg overflow-hidden border border-border dark:border-white/10 shadow-lg"
-                      />
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setLocalVideoUrl(null)}
-                        className="mt-2 text-xs text-muted-foreground hover:text-destructive transition-colors"
-                      >
-                        Reset Video
+                  return (
+                    <div key={card.key} className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-5">
+                      <p className="text-sm text-muted-foreground dark:text-gray-400">{card.label}</p>
+                      <p className={`text-3xl font-bold mt-2 ${card.color}`}>{hasScore ? result.score!.toFixed(1) : "N/A"}</p>
+                      <p className="text-sm text-foreground dark:text-white mt-1">{result?.severity || "Pending"}</p>
+                      <p className="text-xs text-muted-foreground dark:text-gray-400 mt-2">{result ? new Date(result.submittedAt).toLocaleString() : "No submission yet"}</p>
+                      <Button variant="outline" onClick={() => router.push(card.route)} className="mt-4 w-full border-border dark:border-white/10">
+                        <Eye className="w-4 h-4 mr-2" />
+                        View
                       </Button>
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="bg-card dark:bg-[#161b26] rounded-xl border border-border dark:border-white/10 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-foreground dark:text-white">Drawing Analysis</h3>
-                <span className="text-2xl font-bold text-red-500">{formatDrawingScore()}</span>
+                  );
+                })}
               </div>
-              <p className="text-sm text-muted-foreground dark:text-gray-400 mt-3">
-                Parkinson's probability based on micro-tremors in spiral and wave drawings.
-              </p>
-            </div>
-          </div>
 
-          {/* Actions */}
-          <div className="flex gap-4">
-            <Button
-              variant="outline"
-              onClick={() => router.push("/analysis")}
-              className="border-border dark:border-white/10"
-            >
-              Start New Analysis
-            </Button>
-            <Button
-              onClick={() => {
-                sessionStorage.clear();
-                router.push("/");
-              }}
-              className="bg-primary hover:bg-primary/90"
-            >
-              Finish & Return Home
-            </Button>
-          </div>
+              <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-6 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-foreground dark:text-white">Analysis History</h3>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing} className="border-border dark:border-white/10">
+                      <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+                      Refresh
+                    </Button>
+                    <Button variant="outline" onClick={handleDownloadCsv} className="border-border dark:border-white/10">
+                      <Download className="w-4 h-4 mr-2" />
+                      Download CSV
+                    </Button>
+                    <Button onClick={handleDownloadJson} className="bg-primary hover:bg-primary/90">
+                      <FileText className="w-4 h-4 mr-2" />
+                      Download JSON
+                    </Button>
+                  </div>
+                </div>
+
+                {sortedHistory.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border dark:border-white/10 bg-secondary/50 dark:bg-[#0f1219] p-6 text-sm text-muted-foreground dark:text-gray-400">
+                    No database analysis history available yet for this patient.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left border-b border-border dark:border-white/10">
+                          <th className="py-3 pr-4">Type</th>
+                          <th className="py-3 pr-4">Source</th>
+                          <th className="py-3 pr-4">File</th>
+                          <th className="py-3 pr-4">Score</th>
+                          <th className="py-3 pr-4">Severity</th>
+                          <th className="py-3 pr-4">Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedHistory.map((item) => (
+                          <tr key={item.id} className="border-b border-border/60 dark:border-white/10">
+                            <td className="py-3 pr-4 capitalize text-foreground dark:text-white">{item.type}</td>
+                            <td className="py-3 pr-4 text-muted-foreground dark:text-gray-400">{item.source}</td>
+                            <td className="py-3 pr-4 text-muted-foreground dark:text-gray-400">{item.fileName}</td>
+                            <td className="py-3 pr-4 text-foreground dark:text-white">{item.score !== undefined ? item.score.toFixed(1) : "N/A"}</td>
+                            <td className="py-3 pr-4 text-foreground dark:text-white">{item.severity || "N/A"}</td>
+                            <td className="py-3 pr-4 text-muted-foreground dark:text-gray-400">{new Date(item.submittedAt).toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-6 mb-6">
+                <h3 className="text-lg font-semibold text-foreground dark:text-white mb-2">UI Suggestion</h3>
+                <p className="text-sm text-muted-foreground dark:text-gray-400">
+                  A useful next addition here is a compact trend strip under the three cards showing whether each score improved or worsened compared with the previous database record.
+                </p>
+              </div>
+
+              <div className="flex gap-4">
+                <Button variant="outline" onClick={() => router.push("/analysis/dashboard")} className="border-border dark:border-white/10">
+                  Back to Dashboard
+                </Button>
+                <Button
+                  onClick={() => {
+                    sessionStorage.removeItem("patientData");
+                    sessionStorage.removeItem("sessionId");
+                    sessionStorage.removeItem("voiceResult");
+                    sessionStorage.removeItem("gaitResult");
+                    sessionStorage.removeItem("drawingResult");
+                    sessionStorage.removeItem("voiceAnalysisSubmission");
+                    router.push("/");
+                  }}
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  Start New Analysis
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </main>
     </div>

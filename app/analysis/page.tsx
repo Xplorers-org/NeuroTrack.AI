@@ -13,6 +13,20 @@ export default function AnalysisPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [foundPatient, setFoundPatient] = useState<{ fullName: string; patientId: string; age: string; gender: string } | null>(null);
 
+  const readErrorFromResponse = async (res: Response, fallback: string) => {
+    try {
+      const data = await res.json();
+      return typeof data?.error === "string" ? data.error : fallback;
+    } catch {
+      try {
+        const text = await res.text();
+        return text || fallback;
+      } catch {
+        return fallback;
+      }
+    }
+  };
+
   const handlePatientInfoNext = async (data: PatientData, mode: "register" | "find") => {
     setIsSubmitting(true);
     try {
@@ -30,8 +44,8 @@ export default function AnalysisPage() {
         });
 
         if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || "Failed to register patient");
+          const errorMessage = await readErrorFromResponse(res, "Failed to register patient");
+          throw new Error(errorMessage);
         }
 
         const result = await res.json();
@@ -57,8 +71,8 @@ export default function AnalysisPage() {
         });
 
         if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || "Patient not found or session failed");
+          const errorMessage = await readErrorFromResponse(res, "Patient not found or session failed");
+          throw new Error(errorMessage);
         }
 
         const result = await res.json();
