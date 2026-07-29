@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "../GAIT_API"
+		},
+		{
+			"path": "../MIS_API"
+		},
+		{
+			"path": "../Models_training_utils"
+		},
+		{
+			"path": "../UPDRS_API"
+		},
+		{
+			"path": "."
+		}
+	],
+	"settings": {}
+}
