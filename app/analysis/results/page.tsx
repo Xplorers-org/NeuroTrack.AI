@@ -294,8 +294,8 @@ export default function ResultsPage() {
         progress={getProgress()}
       />
 
-      <main className="flex-1 ml-60">
-        <div className="max-w-5xl mx-auto px-8 py-12">
+      <main className="flex-1 min-w-0 lg:ml-60">
+        <div className="max-w-5xl mx-auto px-4 sm:px-8 pt-24 pb-12 lg:py-12">
           <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-foreground dark:text-white">
@@ -412,7 +412,7 @@ export default function ResultsPage() {
                 })}
               </div>
 
-              <div className="flex gap-4">
+              <div className="flex flex-wrap gap-4">
                 <Button
                   variant="outline"
                   onClick={() => router.push("/analysis/progress")}

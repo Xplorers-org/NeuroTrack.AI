@@ -81,7 +81,7 @@ export function PatientInfoForm({ onNext, onPrevious }: PatientInfoFormProps) {
           </p>
 
           {/* Toggle Buttons */}
-          <div className="flex gap-3 mt-5">
+          <div className="flex flex-col sm:flex-row gap-3 mt-5">
             <button
               onClick={() => setMode("register")}
               className={cn(

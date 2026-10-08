@@ -5,7 +5,7 @@ import { Footer } from "@/components/landing/footer";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[#0a0a0f]">
+    <div className="min-h-screen overflow-x-clip bg-[#0a0a0f]">
       <Header />
       <HeroSection />
       <FeaturesSection />

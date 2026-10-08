@@ -1,0 +1,5 @@
+allowBuilds:
+  ffmpeg-static: true
+  msw: false
+  sharp: true
+  unrs-resolver: true

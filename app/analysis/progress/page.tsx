@@ -503,10 +503,10 @@ export default function ProgressPage() {
         progress={getProgress()}
       />
 
-      <main className="flex-1 ml-60">
-        <div className="max-w-[1300px] mx-auto px-8 py-12">
+      <main className="flex-1 min-w-0 lg:ml-60">
+        <div className="max-w-[1300px] mx-auto px-4 sm:px-8 pt-24 pb-12 lg:py-12">
           <div className="mb-6">
-            <h1 className="text-4xl font-bold text-foreground dark:text-white">
+            <h1 className="text-3xl sm:text-4xl font-bold text-foreground dark:text-white">
               Progression Over Time
             </h1>
             <p className="text-muted-foreground dark:text-gray-400 mt-3">
@@ -810,7 +810,7 @@ export default function ProgressPage() {
             )}
           </div>
 
-          <div className="mt-8 flex gap-4">
+          <div className="mt-8 flex flex-wrap gap-4">
             <Button
               variant="outline"
               onClick={() => router.push("/analysis/results")}

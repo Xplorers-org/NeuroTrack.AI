@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,7 @@ import {
   LayoutDashboard,
   FileText,
   ChartLine,
+  Menu,
 } from "lucide-react";
 
 interface NavItem {
@@ -35,6 +37,7 @@ export function AnalysisSidebar({
   progress,
 }: AnalysisSidebarProps) {
   const pathname = usePathname();
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const navItems: NavItem[] = [
     { id: "home", label: "Home", icon: Home, href: "/" },
@@ -80,49 +83,80 @@ export function AnalysisSidebar({
     },
   ];
 
+  const logo = (
+    <>
+      <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-linear-to-br from-cyan-600 to-blue-600">
+        <Brain className="w-5 h-5 text-white" />
+      </div>
+      <div className="flex items-baseline gap-1">
+        <span className="text-xl font-semibold text-sidebar-foreground">
+          NeuroTrack
+        </span>
+        <span className="text-xl font-bold text-cyan-500">AI</span>
+      </div>
+    </>
+  );
+
   return (
-    <aside className="fixed left-0 top-0 z-50 flex h-screen w-60 flex-col border-r border-sidebar-border bg-sidebar">
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-6">
-        <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-linear-to-br from-cyan-600 to-blue-600">
-          <Brain className="w-5 h-5 text-white" />
-        </div>
-        <div className="flex items-baseline gap-1">
-          <span className="text-xl font-semibold text-sidebar-foreground">
-            NeuroTrack
-          </span>
-          <span className="text-xl font-bold text-cyan-500">AI</span>
-        </div>
+    <>
+      {/* Mobile top bar */}
+      <div className="fixed inset-x-0 top-0 z-40 flex h-16 items-center gap-3 border-b border-sidebar-border bg-sidebar px-4 lg:hidden">
+        <button
+          type="button"
+          onClick={() => setIsMobileOpen(true)}
+          className="flex items-center justify-center w-9 h-9 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent"
+          aria-label="Open navigation"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        <div className="flex items-center gap-3">{logo}</div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 px-3 py-4">
-        <ul className="space-y-1">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href || currentStep === item.id;
-            const Icon = item.icon;
+      {/* Mobile backdrop */}
+      {isMobileOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 lg:hidden"
+          onClick={() => setIsMobileOpen(false)}
+        />
+      )}
 
-            return (
-              <li key={item.id}>
-                <Link
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-200",
-                    isActive
-                      ? "border-l-2 border-cyan-500 bg-linear-to-r from-cyan-500/20 to-blue-600/10 text-sidebar-foreground"
-                      : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground",
-                  )}
-                >
-                  <Icon className="w-5 h-5" />
-                  <span className="text-sm font-medium">{item.label}</span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+      <aside
+        className={cn(
+          "fixed left-0 top-0 z-50 flex h-screen w-60 flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-300 lg:translate-x-0",
+          isMobileOpen ? "translate-x-0" : "-translate-x-full",
+        )}
+      >
+        {/* Logo */}
+        <div className="flex items-center gap-3 px-5 py-6">{logo}</div>
 
+        {/* Navigation */}
+        <nav className="flex-1 px-3 py-4">
+          <ul className="space-y-1">
+            {navItems.map((item) => {
+              const isActive = pathname === item.href || currentStep === item.id;
+              const Icon = item.icon;
 
-    </aside>
+              return (
+                <li key={item.id}>
+                  <Link
+                    href={item.href}
+                    onClick={() => setIsMobileOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-200",
+                      isActive
+                        ? "border-l-2 border-cyan-500 bg-linear-to-r from-cyan-500/20 to-blue-600/10 text-sidebar-foreground"
+                        : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                    )}
+                  >
+                    <Icon className="w-5 h-5" />
+                    <span className="text-sm font-medium">{item.label}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      </aside>
+    </>
   );
 }

@@ -103,8 +103,8 @@ export default function AnalysisPage() {
   return (
     <div className="flex min-h-screen bg-background dark:bg-[#0a0e17]">
       <AnalysisSidebar currentStep="patient-info" completedSteps={completedSteps} progress={{ current: completedSteps.length, total: 3 }} />
-      <main className="flex-1 ml-60">
-        <div className="max-w-4xl mx-auto px-8 py-12">
+      <main className="flex-1 min-w-0 lg:ml-60">
+        <div className="max-w-4xl mx-auto px-4 sm:px-8 pt-24 pb-12 lg:py-12">
           <div className="mb-8">
             <h1 className="text-2xl md:text-3xl font-bold text-foreground dark:text-white">Patient Information</h1>
             <p className="text-muted-foreground dark:text-gray-400 mt-2">Please provide patient details before starting the analysis.</p>
@@ -118,7 +118,7 @@ export default function AnalysisPage() {
       {/* Patient Found Modal */}
       {foundPatient && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-card dark:bg-[#161b26] border border-border dark:border-white/10 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl animate-in fade-in zoom-in duration-200">
+          <div className="bg-card dark:bg-[#161b26] border border-border dark:border-white/10 rounded-2xl p-5 sm:p-8 max-w-md w-full mx-4 shadow-2xl animate-in fade-in zoom-in duration-200">
             <h3 className="text-xl font-semibold text-foreground dark:text-white mb-2">Patient Records Found</h3>
             <p className="text-sm text-muted-foreground dark:text-gray-400 mb-6">Verify the details below before proceeding.</p>
             

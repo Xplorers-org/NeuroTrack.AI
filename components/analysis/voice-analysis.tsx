@@ -111,7 +111,7 @@ export function VoiceAnalysis({ onNext, onPrevious }: VoiceAnalysisProps) {
   return (
     <div className="w-full">
       {/* Upload/Record Card */}
-      <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-8">
+      <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-5 sm:p-8">
         <h3 className="text-xl font-semibold text-foreground dark:text-white mb-1">
           Upload/Record
         </h3>

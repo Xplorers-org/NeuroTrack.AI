@@ -257,8 +257,8 @@ export default function DrawingAnalysisPage() {
         progress={getProgress()}
       />
 
-      <main className="flex-1 ml-60">
-        <div className="max-w-4xl mx-auto px-8 py-12">
+      <main className="flex-1 min-w-0 lg:ml-60">
+        <div className="max-w-4xl mx-auto px-4 sm:px-8 pt-24 pb-12 lg:py-12">
           <div className="mb-4">
             <h1 className="text-2xl md:text-3xl font-bold text-foreground dark:text-white">
               Drawing Analysis
@@ -272,7 +272,7 @@ export default function DrawingAnalysisPage() {
 
           {step === 1 && (
             <div className="w-full">
-              <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-8">
+              <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-5 sm:p-8">
                 <h3 className="text-xl font-semibold text-foreground dark:text-white mb-1">
                   Upload a File
                 </h3>
@@ -412,7 +412,7 @@ export default function DrawingAnalysisPage() {
           )}
 
           {step === 2 && (
-            <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-8">
+            <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-5 sm:p-8">
               <h3 className="text-xl font-semibold text-foreground dark:text-white mb-2">
                 Preview
               </h3>
@@ -468,7 +468,7 @@ export default function DrawingAnalysisPage() {
 
           {step === 3 && (
             <div className="space-y-6">
-              <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-10 text-center">
+              <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-5 sm:p-10 text-center">
                 <div className="flex items-center justify-center gap-4 mb-4">
                   <div className="w-18 h-18 rounded-full bg-primary/15 flex items-center justify-center">
                     <Upload className="w-10 h-10 text-primary" />
@@ -569,7 +569,7 @@ export default function DrawingAnalysisPage() {
 
           {step === 4 && (
             <div className="space-y-6">
-              <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-10">
+              <div className="bg-card dark:bg-[#161b26] rounded-2xl border border-border dark:border-white/10 p-5 sm:p-10">
                 <div className="flex items-start justify-between gap-6">
                   <div>
                     <h3 className="text-2xl md:text-3xl font-bold text-foreground dark:text-white">
@@ -607,7 +607,7 @@ export default function DrawingAnalysisPage() {
                   </p>
                 </div>
 
-                <div className="border dark:bg-[#0f1219] rounded-xl p-10 mt-8">
+                <div className="border dark:bg-[#0f1219] rounded-xl p-5 sm:p-10 mt-8">
                   <div className="text-center">
                     <p className="tracking-[0.2em] text-lg text-muted-foreground dark:text-gray-400 mb-2">
                       MOTOR IMPAIRMENT SCORE

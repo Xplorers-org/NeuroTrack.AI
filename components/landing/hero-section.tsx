@@ -39,7 +39,7 @@ export function HeroSection() {
  {/* NeuroTrack&apos;s - Clinical AI */}
 
         <motion.h1 custom={1} initial="hidden" animate="visible" variants={fadeUpVariants}
-          className="text-5xl md:text-6xl font-bold tracking-tight text-foreground mb-6 leading-[1.1]"
+          className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-foreground mb-6 leading-[1.1]"
         >
           Predict Parkinson&apos;s Severity  with{" "}
           <span className="bg-linear-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
