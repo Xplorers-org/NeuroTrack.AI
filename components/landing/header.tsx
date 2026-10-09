@@ -19,7 +19,7 @@ export function Header() {
             <Brain className="w-5 h-5 text-primary-foreground" />
           </div>
           <span className="text-lg sm:text-xl font-semibold text-sidebar-foreground">
-            NeroTrack
+            NeuroTrack
           </span>
           <span className="text-lg sm:text-xl font-bold text-cyan-500">AI</span>
         </Link>
